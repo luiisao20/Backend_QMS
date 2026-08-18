@@ -1,0 +1,9 @@
+package com.devluis.repository;
+
+import org.springframework.data.jpa.repository.JpaRepository;
+
+import com.devluis.entity.Stablishment;
+
+public interface StablishmentRepository extends JpaRepository<Stablishment, Long> {
+  
+}

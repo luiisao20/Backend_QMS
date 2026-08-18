@@ -6,7 +6,6 @@ import java.util.UUID;
 
 import org.hibernate.annotations.CreationTimestamp;
 
-import com.devluis.types.Gender;
 import com.devluis.types.Role;
 
 import jakarta.persistence.*;
@@ -19,9 +18,9 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 @NoArgsConstructor
 @Builder
-@Table(name = "doctors")
+@Table(name = "operators")
 @Entity
-public class Doctor {
+public class Operator {
   @Id
   @GeneratedValue(strategy = GenerationType.UUID)
   private UUID uuid;
@@ -38,27 +37,18 @@ public class Doctor {
   @Column(nullable = false)
   private String lastName;
 
-  @Column(nullable = false)
-  private String speciality;
-
-  @Enumerated(EnumType.STRING)
-  private Gender gender;
-
-  @Column(nullable = false, unique = true)
-  private String ci;
-
   @Enumerated(EnumType.STRING)
   @Builder.Default
-  private Role role = Role.ROLE_DOCTOR;
+  private Role role = Role.ROLE_ADMIN;
 
   @CreationTimestamp
   @Column(columnDefinition = "timestamptz")
   private OffsetDateTime createdAt;
 
-  @OneToMany(mappedBy = "doctor", cascade = CascadeType.ALL, orphanRemoval = true)
-  private List<Schedule> schedules;
+  @OneToMany(mappedBy = "operator", cascade = CascadeType.ALL)
+  private List<Turn> turns;
 
-  @ManyToMany
-  @JoinTable(name = "stablishment_has_doctors", joinColumns = @JoinColumn(name = "doctor_id"), inverseJoinColumns = @JoinColumn(name = "stablishment_id"))
-  private List<Stablishment> stablishments;
+  @ManyToOne
+  @JoinColumn(name = "stablishment_id")
+  private Stablishment stablishment;
 }
