@@ -9,4 +9,5 @@ import com.devluis.entity.Doctor;
 
 public interface DoctorRepository extends JpaRepository<Doctor, UUID> {
   Optional<Doctor> findByEmail(String email);
+  Optional<Doctor> findByCi(String ci);
 }
