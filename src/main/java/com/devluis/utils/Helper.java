@@ -15,6 +15,13 @@ public class Helper {
     return ResponseEntity.status(status).body(Map.of("message", msg));
   }
 
+  /**
+   * Agrega un token a la cookie
+   * 
+   * @param res    Response
+   * @param jwt    Token
+   * @param maxAge Segundos
+   */
   public static void addJwtCookie(HttpServletResponse res, String jwt, long maxAge) {
     res.addHeader(HttpHeaders.SET_COOKIE, CookiesUtils.createJwtCookie(jwt, maxAge).toString());
   }

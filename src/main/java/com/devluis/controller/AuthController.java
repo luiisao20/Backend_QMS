@@ -2,17 +2,21 @@ package com.devluis.controller;
 
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+
+import java.util.Map;
+
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 
 import com.devluis.services.AuthService;
-import com.devluis.services.PatientService;
 import com.devluis.services.DoctorService;
 import com.devluis.services.OperatorService;
 import com.devluis.dto.PatientDTO;
 import com.devluis.dto.DoctorDTO;
 import com.devluis.dto.OperatorDTO;
+import com.devluis.types.InitRegistrationBody;
 import com.devluis.types.LoginDoctorBody;
 import com.devluis.types.LoginOperatorBody;
 import com.devluis.types.LoginPatientBody;
@@ -28,7 +32,6 @@ import lombok.RequiredArgsConstructor;
 @RequestMapping("/auth")
 public class AuthController {
   private final AuthService authService;
-  private final PatientService patientService;
   private final DoctorService doctorService;
   private final OperatorService operatorService;
 
@@ -85,18 +88,42 @@ public class AuthController {
       return Helper.getResponseMessage(result.getMessage(), result.getStatus());
     }
     return ResponseEntity.ok()
-            .header("Authorization", "Bearer " + result.getData().getJwtToken())
-            .body(result.getData().getAuthResponse());
+        .header("Authorization", "Bearer " + result.getData().getJwtToken())
+        .body(result.getData().getAuthResponse());
+  }
+
+  @PostMapping("/init-registration-patient")
+  public ResponseEntity<?> initRegistration(
+      @Valid @RequestBody InitRegistrationBody body,
+      HttpServletRequest req,
+      HttpServletResponse res) {
+    var result = authService.initRegistration(req, res, body);
+
+    if (!result.isSuccess()) {
+      return Helper.getResponseMessage(result.getMessage(), result.getStatus());
+    }
+
+    Helper.addJwtCookie(res, result.getData().getJwtToken(), 300);
+
+    return ResponseEntity.ok(Map.of("Message", "Código Otp enviado al correo"));
   }
 
   @PostMapping("/register-patient")
-  public ResponseEntity<?> registerPatient(@Valid @RequestBody PatientDTO dto) {
-    try {
-      PatientDTO registered = patientService.register(dto);
-      return ResponseEntity.ok(registered);
-    } catch (RuntimeException e) {
-      return Helper.getResponseMessage(e.getMessage(), org.springframework.http.HttpStatus.BAD_REQUEST);
+  public ResponseEntity<?> registerPatient(
+      @Valid @RequestBody PatientDTO dto,
+      HttpServletRequest req,
+      HttpServletResponse res,
+      Authentication auth) {
+    String emailAuth = auth.getName();
+    var result = authService.completeRegistration(emailAuth, dto);
+
+    if (!result.isSuccess()) {
+      return Helper.getResponseMessage(result.getMessage(), result.getStatus());
     }
+
+    Helper.addJwtCookie(res, result.getData().getJwtToken(), 86400);
+
+    return ResponseEntity.ok(result.getData().getAuthResponse());
   }
 
   @PostMapping("/register-doctor")

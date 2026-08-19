@@ -1,7 +1,5 @@
 package com.devluis.types;
 
-import java.util.UUID;
-
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -16,6 +14,5 @@ public class AuthResponse {
   private String firstName;
   private String lastName;
   private String role;
-  private UUID uuid;
   private String message;
 }

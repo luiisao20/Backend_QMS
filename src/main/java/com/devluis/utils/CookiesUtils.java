@@ -48,7 +48,7 @@ public class CookiesUtils {
 
     return Arrays.stream(cookies)
         .filter(c -> "jwt".equals(c.getName()))
-        .map(Cookie::getValue)
+        .map(cookie -> cookie.getValue())
         .findFirst()
         .orElse(null);
   }

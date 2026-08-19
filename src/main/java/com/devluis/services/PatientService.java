@@ -25,11 +25,18 @@ public class PatientService implements UserDetailsService {
   private final PasswordEncoder passwordEncoder;
   private final PatientRepository patientRepository;
 
+  /**
+   * Login de paciente con email
+   * 
+   * @param email
+   * @param password
+   * @return
+   */
   public Authentication loginEmail(String email, String password) {
     try {
       UserDetails userDetails = loadUserByUsername(email);
       if (passwordEncoder.matches(password, userDetails.getPassword())) {
-        return new UsernamePasswordAuthenticationToken(userDetails, userDetails.getAuthorities());
+        return new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());
       }
       throw new BadCredentialsException("Error de autenticación");
     } catch (Exception e) {
@@ -39,9 +46,9 @@ public class PatientService implements UserDetailsService {
 
   public Authentication loginCI(String ci, String password) {
     try {
-      UserDetails userDetails = loadUserByUsername(ci);
+      UserDetails userDetails = loadUserByCi(ci);
       if (passwordEncoder.matches(password, userDetails.getPassword())) {
-        return new UsernamePasswordAuthenticationToken(userDetails, userDetails.getAuthorities());
+        return new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());
       }
       throw new BadCredentialsException("Error de autenticación");
     } catch (Exception e) {
@@ -72,7 +79,7 @@ public class PatientService implements UserDetailsService {
         .build();
   }
 
-  public PatientDTO register(PatientDTO patientDTO) {
+  public Patient register(PatientDTO patientDTO) {
     if (patientRepository.findByEmail(patientDTO.getEmail()).isPresent()) {
       throw new RuntimeException("Email ya registrado");
     }
@@ -82,7 +89,7 @@ public class PatientService implements UserDetailsService {
     patient.setRole(Role.ROLE_PATIENT);
 
     Patient savedPatient = patientRepository.save(patient);
-    return mapToDTO(savedPatient);
+    return savedPatient;
   }
 
   public Optional<Patient> findByEmail(String email) {

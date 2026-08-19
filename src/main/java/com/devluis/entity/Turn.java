@@ -23,7 +23,7 @@ public class Turn {
   @GeneratedValue(strategy = GenerationType.IDENTITY)
   private Long id;
 
-  @Column(nullable = false)
+  @Column(name = "turn_order", nullable = false)
   private Integer order;
 
   @Enumerated(EnumType.STRING)

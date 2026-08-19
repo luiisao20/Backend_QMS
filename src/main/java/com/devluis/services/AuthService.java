@@ -1,16 +1,22 @@
 package com.devluis.services;
 
+import java.util.List;
+
 import org.springframework.http.HttpStatus;
 import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 
+import com.devluis.dto.PatientDTO;
 import com.devluis.entity.Operator;
 import com.devluis.entity.Patient;
 import com.devluis.jwt.JwtProvider;
 import com.devluis.types.AuthResponse;
 import com.devluis.types.AuthResult;
+import com.devluis.types.InitRegistrationBody;
 import com.devluis.types.LoginDoctorBody;
 import com.devluis.types.LoginOperatorBody;
 import com.devluis.types.LoginPatientBody;
@@ -23,13 +29,28 @@ import lombok.Data;
 @Service
 @Data
 public class AuthService {
+  private final MailService mailService;
   private final DoctorService doctorService;
   private final PatientService patientService;
   private final OperatorService operatorService;
+  private final OtpService otpService;
 
   @Data
   @Builder
   public static class LoginResult {
+    private AuthResponse authResponse;
+    private String jwtToken;
+  }
+
+  @Data
+  @Builder
+  public static class InitRegistrationResult {
+    private String jwtToken;
+  }
+
+  @Data
+  @Builder
+  public static class RegistrationResult {
     private AuthResponse authResponse;
     private String jwtToken;
   }
@@ -100,6 +121,48 @@ public class AuthService {
     } catch (RuntimeException e) {
       return AuthResult.error("Error de autenticación", HttpStatus.NOT_FOUND);
     }
+  }
+
+  public AuthResult<InitRegistrationResult> initRegistration(
+      HttpServletRequest req,
+      HttpServletResponse res,
+      InitRegistrationBody body) {
+    if (patientService.findByCi(body.getCi()).isPresent()) {
+      return AuthResult.error("El usuario ya se encuentra registrado con esta cédula", HttpStatus.BAD_REQUEST);
+    }
+
+    if (patientService.findByEmail(body.getEmail()).isPresent()) {
+      return AuthResult.error("El usuario ya se encuentra registrado con este correo", HttpStatus.BAD_REQUEST);
+    }
+
+    String otp = otpService.generateOtp();
+
+    Authentication auth = new UsernamePasswordAuthenticationToken(body.getEmail(), null,
+        List.of(new SimpleGrantedAuthority("ROLE_OTP_PENDING")));
+    String jwt = JwtProvider.generateFlashToken(auth);
+    SecurityContextHolder.getContext().setAuthentication(auth);
+
+    mailService.sendTestEmail(body.getEmail(), "Completa tu registro",
+        "Se ha generado un código OTP " + otp + " por favor ingrésalo en la plataforma para completar tu registro");
+
+    return AuthResult.ok(InitRegistrationResult.builder().jwtToken(jwt).build());
+  }
+
+  public AuthResult<RegistrationResult> completeRegistration(String emailAuth, PatientDTO patient) {
+    if (!emailAuth.equals(patient.getEmail())) {
+      return AuthResult.error("El email no pertenece al usuario autenticado", HttpStatus.BAD_REQUEST);
+    }
+    Patient patientRegistered = patientService.register(patient);
+
+    Authentication auth = patientService.loginEmail(patientRegistered.getEmail(), patient.getPassword());
+    String jwt = JwtProvider.generateToken(auth);
+    SecurityContextHolder.getContext().setAuthentication(auth);
+
+    mailService.sendTestEmail(emailAuth, "Registro exitoso",
+        "Te has registrado exitosamente en la plataforma");
+    return AuthResult.ok(RegistrationResult.builder()
+        .authResponse(buildAuthResponse(patientRegistered, "Registro culminado con éxito"))
+        .jwtToken(jwt).build());
   }
 
   private AuthResponse buildAuthResponse(Patient user, String message) {

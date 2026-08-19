@@ -29,6 +29,20 @@ public class JwtProvider {
         .compact();
   }
 
+  public static String generateFlashToken(Authentication auth) {
+    Collection<? extends GrantedAuthority> authorities = auth.getAuthorities();
+    String roles = populateAuthorities(authorities);
+    SecretKey key = Keys.hmacShaKeyFor(JwtConstants.SECRET_KEY_STATIC.getBytes());
+
+    return Jwts.builder()
+        .setIssuedAt(new Date())
+        .setExpiration(new Date(new Date().getTime() + 300000)) // 5 minutos
+        .claim("email", auth.getName())
+        .claim("authorities", roles)
+        .signWith(key)
+        .compact();
+  }
+
   private static String populateAuthorities(Collection<? extends GrantedAuthority> authorities) {
     Set<String> auths = new HashSet<>();
     for (GrantedAuthority grantedAuthority : authorities) {
