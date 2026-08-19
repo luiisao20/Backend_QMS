@@ -85,6 +85,7 @@ public class PatientService implements UserDetailsService {
     }
 
     Patient patient = mapToEntity(patientDTO);
+    patient.setEmail(patientDTO.getEmail().toLowerCase());
     patient.setPassword(passwordEncoder.encode(patientDTO.getPassword()));
     patient.setRole(Role.ROLE_PATIENT);
 

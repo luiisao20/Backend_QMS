@@ -1,6 +1,9 @@
 package com.devluis.dto;
 
 import java.util.UUID;
+
+import com.devluis.types.Role;
+
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -8,6 +11,7 @@ import lombok.NoArgsConstructor;
 
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 
 @Data
 @Builder
@@ -28,4 +32,7 @@ public class OperatorDTO {
 
     @NotBlank(message = "El apellido es requerido")
     private String lastName;
+
+    @NotNull(message = "El rol es requerido")
+    private Role role;
 }

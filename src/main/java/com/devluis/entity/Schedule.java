@@ -42,7 +42,7 @@ public class Schedule {
 
   @ManyToOne(fetch = FetchType.LAZY)
   @JoinColumn(name = "service_id")
-  private Service service;
+  private Servicio service;
 
   @CreationTimestamp
   @Column(columnDefinition = "timestamptz")
