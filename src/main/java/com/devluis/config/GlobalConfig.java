@@ -51,6 +51,7 @@ public class GlobalConfig {
         .httpBasic(Customizer.withDefaults())
         .formLogin(form -> form.disable())
         .authorizeHttpRequests(auth -> auth
+            .requestMatchers("/turns/**").authenticated()
             .anyRequest().permitAll()) // Permitimos todos los endpoints de momento
         .addFilterBefore(jwtValidator, BasicAuthenticationFilter.class);
     return http.build();

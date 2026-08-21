@@ -22,6 +22,7 @@ public class ScheduleService {
   private final ScheduleRepository scheduleRepository;
   private final DoctorRepository doctorRepository;
   private final ServiceRepository serviceRepository;
+  private final com.devluis.repository.StablishmentRepository stablishmentRepository;
 
   public ScheduleDTO create(ScheduleDTO dto) {
     Doctor doctor = doctorRepository.findById(dto.getDoctor().getUuid())
@@ -30,11 +31,15 @@ public class ScheduleService {
     Servicio servicio = serviceRepository.findById(dto.getService().getId())
         .orElseThrow(() -> new RuntimeException("Servicio no encontrado"));
 
+    com.devluis.entity.Stablishment stablishment = stablishmentRepository.findById(dto.getStablishment().getId())
+        .orElseThrow(() -> new RuntimeException("Establecimiento no encontrado"));
+
     Schedule schedule = Schedule.builder()
         .date(dto.getDate())
         .hour(dto.getHour())
         .doctor(doctor)
         .service(servicio)
+        .stablishment(stablishment)
         .build();
 
     Schedule saved = scheduleRepository.save(schedule);
@@ -75,6 +80,12 @@ public class ScheduleService {
       schedule.setService(servicio);
     }
 
+    if (dto.getStablishment() != null && dto.getStablishment().getId() != null) {
+      com.devluis.entity.Stablishment stablishment = stablishmentRepository.findById(dto.getStablishment().getId())
+          .orElseThrow(() -> new RuntimeException("Establecimiento no encontrado"));
+      schedule.setStablishment(stablishment);
+    }
+
     Schedule updated = scheduleRepository.save(schedule);
     return mapToDTO(updated);
   }
@@ -108,6 +119,15 @@ public class ScheduleService {
           .build();
     }
 
+    com.devluis.dto.StablishmentDTO stablishmentDTO = null;
+    if (entity.getStablishment() != null) {
+      stablishmentDTO = com.devluis.dto.StablishmentDTO.builder()
+          .id(entity.getStablishment().getId())
+          .name(entity.getStablishment().getName())
+          .address(entity.getStablishment().getAddress())
+          .build();
+    }
+
     return ScheduleDTO.builder()
         .id(entity.getId())
         .date(entity.getDate())
@@ -116,6 +136,7 @@ public class ScheduleService {
         .createdAt(entity.getCreatedAt())
         .doctor(doctorDTO)
         .service(servicioDTO)
+        .stablishment(stablishmentDTO)
         .build();
   }
 }

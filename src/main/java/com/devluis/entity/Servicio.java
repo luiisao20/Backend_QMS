@@ -36,4 +36,7 @@ public class Servicio {
   @CreationTimestamp
   @Column(columnDefinition = "timestamptz")
   private OffsetDateTime createdAt;
+
+  @ManyToMany(mappedBy = "services")
+  private List<Stablishment> stablishments;
 }

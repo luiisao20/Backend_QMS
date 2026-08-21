@@ -44,6 +44,10 @@ public class Schedule {
   @JoinColumn(name = "service_id")
   private Servicio service;
 
+  @ManyToOne(fetch = FetchType.LAZY)
+  @JoinColumn(name = "stablishment_id")
+  private Stablishment stablishment;
+
   @CreationTimestamp
   @Column(columnDefinition = "timestamptz")
   private OffsetDateTime createdAt;

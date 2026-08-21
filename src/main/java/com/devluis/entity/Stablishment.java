@@ -34,4 +34,15 @@ public class Stablishment {
   @ManyToMany
   @JoinTable(name = "stablishment_has_doctors", joinColumns = @JoinColumn(name = "stablishment_id"), inverseJoinColumns = @JoinColumn(name = "doctor_id"))
   private List<Doctor> doctors;
+
+  @OneToMany(mappedBy = "stablishment", cascade = CascadeType.ALL, orphanRemoval = true)
+  private List<Schedule> schedules;
+
+  @ManyToMany
+  @JoinTable(
+      name = "stablishment_has_services",
+      joinColumns = @JoinColumn(name = "stablishment_id"),
+      inverseJoinColumns = @JoinColumn(name = "service_id")
+  )
+  private List<Servicio> services;
 }

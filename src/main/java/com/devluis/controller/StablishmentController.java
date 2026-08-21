@@ -45,4 +45,9 @@ public class StablishmentController {
     stablishmentService.delete(id);
     return ResponseEntity.noContent().build();
   }
+
+  @PostMapping("/{id}/services/{serviceId}")
+  public ResponseEntity<StablishmentDTO> assignService(@PathVariable Long id, @PathVariable Long serviceId) {
+    return ResponseEntity.ok(stablishmentService.assignService(id, serviceId));
+  }
 }

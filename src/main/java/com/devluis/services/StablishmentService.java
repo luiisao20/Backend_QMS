@@ -15,6 +15,8 @@ import org.springframework.stereotype.Service;
 public class StablishmentService {
   private final StablishmentRepository stablishmentRepository;
 
+  private final com.devluis.repository.ServiceRepository serviceRepository;
+
   public StablishmentDTO create(StablishmentDTO dto) {
     Stablishment stablishment = mapToEntity(dto);
     Stablishment saved = stablishmentRepository.save(stablishment);
@@ -51,6 +53,25 @@ public class StablishmentService {
     stablishmentRepository.deleteById(id);
   }
 
+  public StablishmentDTO assignService(Long stablishmentId, Long serviceId) {
+    Stablishment stablishment = stablishmentRepository.findById(stablishmentId)
+        .orElseThrow(() -> new RuntimeException("Establecimiento no encontrado"));
+
+    com.devluis.entity.Servicio service = serviceRepository.findById(serviceId)
+        .orElseThrow(() -> new RuntimeException("Servicio no encontrado"));
+
+    if (stablishment.getServices() == null) {
+      stablishment.setServices(new java.util.ArrayList<>());
+    }
+    
+    if (!stablishment.getServices().contains(service)) {
+      stablishment.getServices().add(service);
+      stablishmentRepository.save(stablishment);
+    }
+    
+    return mapToDTO(stablishment);
+  }
+
   private Stablishment mapToEntity(StablishmentDTO dto) {
     return Stablishment.builder()
         .id(dto.getId())
@@ -60,10 +81,22 @@ public class StablishmentService {
   }
 
   private StablishmentDTO mapToDTO(Stablishment entity) {
+    java.util.List<com.devluis.dto.ServicioDTO> servicioDTOs = null;
+    if (entity.getServices() != null) {
+      servicioDTOs = entity.getServices().stream().map(s -> 
+          com.devluis.dto.ServicioDTO.builder()
+              .id(s.getId())
+              .name(s.getName())
+              .price(s.getPrice())
+              .build()
+      ).toList();
+    }
+
     return StablishmentDTO.builder()
         .id(entity.getId())
         .name(entity.getName())
         .address(entity.getAddress())
+        .services(servicioDTOs)
         .build();
   }
 }

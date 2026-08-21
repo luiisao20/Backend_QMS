@@ -39,4 +39,6 @@ public class DoctorDTO {
     @NotBlank(message = "La cédula es requerida")
     @Pattern(regexp = "^[0-9]{10}$", message = "La cédula debe contener exactamente 10 dígitos numéricos.")
     private String ci;
+
+    private java.util.List<StablishmentDTO> stablishments;
 }

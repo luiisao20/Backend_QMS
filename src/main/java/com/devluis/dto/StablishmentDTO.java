@@ -26,4 +26,6 @@ public class StablishmentDTO {
 
   private List<DoctorDTO> doctors;
 
+  private List<ServicioDTO> services;
+
 }
