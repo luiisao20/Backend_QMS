@@ -31,6 +31,7 @@ public class TurnService {
   private final PatientRepository patientRepository;
   private final ScheduleRepository scheduleRepository;
   private final com.devluis.repository.OperatorRepository operatorRepository;
+  private final org.springframework.messaging.simp.SimpMessagingTemplate messagingTemplate;
 
   public TurnDTO create(TurnDTO dto, String authName) {
     // 1. Obtener el paciente a partir de la autenticación
@@ -60,7 +61,9 @@ public class TurnService {
         .build();
 
     Turn saved = turnRepository.save(turn);
-    return mapToDTO(saved);
+    TurnDTO savedDTO = mapToDTO(saved);
+    broadcastTurnUpdate(saved, savedDTO);
+    return savedDTO;
   }
 
   public TurnDTO createByStaff(TurnDTO dto, String staffAuthName) {
@@ -98,7 +101,9 @@ public class TurnService {
         .build();
 
     Turn saved = turnRepository.save(turn);
-    return mapToDTO(saved);
+    TurnDTO savedDTO = mapToDTO(saved);
+    broadcastTurnUpdate(saved, savedDTO);
+    return savedDTO;
   }
 
   public Page<TurnDTO> getAll(Pageable pageable) {
@@ -127,7 +132,9 @@ public class TurnService {
     turn.setStatus(com.devluis.types.TurnStatus.TURN_TREATED);
 
     Turn updated = turnRepository.save(turn);
-    return mapToDTO(updated);
+    TurnDTO updatedDTO = mapToDTO(updated);
+    broadcastTurnUpdate(updated, updatedDTO);
+    return updatedDTO;
   }
 
   public TurnDTO cancelTurn(Long turnId, String patientUuidStr) {
@@ -143,7 +150,7 @@ public class TurnService {
       throw new RuntimeException("Error de permisos: Este turno no te pertenece");
     }
 
-    if (turn.getStatus() == com.devluis.types.TurnStatus.TURN_TREATED || 
+    if (turn.getStatus() == com.devluis.types.TurnStatus.TURN_TREATED ||
         turn.getStatus() == com.devluis.types.TurnStatus.TURN_CANCELLED) {
       throw new RuntimeException("No puedes cancelar un turno que ya fue atendido o cancelado");
     }
@@ -151,7 +158,9 @@ public class TurnService {
     turn.setStatus(com.devluis.types.TurnStatus.TURN_CANCELLED);
 
     Turn updated = turnRepository.save(turn);
-    return mapToDTO(updated);
+    TurnDTO updatedDTO = mapToDTO(updated);
+    broadcastTurnUpdate(updated, updatedDTO);
+    return updatedDTO;
   }
 
   // Método auxiliar para mapear de Entidad a DTO
@@ -219,5 +228,12 @@ public class TurnService {
         .schedule(scheduleDTO)
         .operator(operatorDTO)
         .build();
+  }
+
+  private void broadcastTurnUpdate(Turn turn, TurnDTO turnDTO) {
+    if (turn.getSchedule() != null && turn.getSchedule().getService() != null && turn.getSchedule().getDate() != null) {
+      String topic = "/topic/turns/" + turn.getSchedule().getService().getId() + "/" + turn.getSchedule().getDate();
+      messagingTemplate.convertAndSend(topic, turnDTO);
+    }
   }
 }

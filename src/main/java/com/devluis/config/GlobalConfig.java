@@ -52,6 +52,7 @@ public class GlobalConfig {
         .formLogin(form -> form.disable())
         .authorizeHttpRequests(auth -> auth
             .requestMatchers("/turns/**").authenticated()
+            .requestMatchers("/ws-turns/**").authenticated()
             .anyRequest().permitAll()) // Permitimos todos los endpoints de momento
         .addFilterBefore(jwtValidator, BasicAuthenticationFilter.class);
     return http.build();
