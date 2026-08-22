@@ -48,14 +48,14 @@ public class DoctorController {
     return ResponseEntity.ok(doctorService.getDoctorById(id));
   }
 
-    @PostMapping("/{id}/stablishments/{stablishmentId}")
-    public ResponseEntity<DoctorDTO> assignToStablishment(
-            @PathVariable UUID id,
-            @PathVariable Long stablishmentId) {
-        return ResponseEntity.ok(doctorService.assignToStablishment(id, stablishmentId));
-    }
+  @PostMapping("/{id}/stablishments/{stablishmentId}")
+  public ResponseEntity<DoctorDTO> assignToStablishment(
+      @PathVariable UUID id,
+      @PathVariable Long stablishmentId) {
+    return ResponseEntity.ok(doctorService.assignToStablishment(id, stablishmentId));
+  }
 
-    @PutMapping("/{id}")
+  @PutMapping("/{id}")
   public ResponseEntity<DoctorDTO> updateInfo(@PathVariable UUID id, @Valid @RequestBody DoctorDTO doctorDTO) {
     return ResponseEntity.ok(doctorService.updateDoctor(id, doctorDTO));
   }

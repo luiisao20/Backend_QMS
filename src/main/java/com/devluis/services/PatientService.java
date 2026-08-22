@@ -107,7 +107,7 @@ public class PatientService implements UserDetailsService {
 
     patient.setFirstName(patientDTO.getFirstName());
     patient.setLastName(patientDTO.getLastName());
-    patient.setCi(patientDTO.getCi());
+    // El número de cédula (CI) no puede ser modificado por el usuario
     patient.setBirthday(patientDTO.getBirthday());
     patient.setGender(patientDTO.getGender());
     patient.setAddress(patientDTO.getAddress());
@@ -141,6 +141,10 @@ public class PatientService implements UserDetailsService {
     Patient patient = patientRepository.findById(id)
         .orElseThrow(() -> new RuntimeException("Paciente no encontrado"));
     return mapToDTO(patient);
+  }
+
+  public org.springframework.data.domain.Page<PatientDTO> getAll(org.springframework.data.domain.Pageable pageable) {
+    return patientRepository.findAll(pageable).map(this::mapToDTO);
   }
 
   private Patient mapToEntity(PatientDTO dto) {

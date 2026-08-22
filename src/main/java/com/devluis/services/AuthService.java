@@ -221,4 +221,75 @@ public class AuthService {
         .message(message)
         .build();
   }
+
+  public AuthResult<String> initPasswordRecovery(String email) {
+    boolean exists = patientRepository.findByEmail(email).isPresent() ||
+                     doctorRepository.findByEmail(email).isPresent() ||
+                     operatorRepository.findByEmail(email).isPresent();
+    if (!exists) {
+      return AuthResult.error("No existe un usuario con ese correo", HttpStatus.NOT_FOUND);
+    }
+
+    String otp = otpService.generateOtp();
+    otpService.saveOtp(email, otp);
+
+    Authentication auth = new UsernamePasswordAuthenticationToken(email, null,
+        List.of(new SimpleGrantedAuthority("ROLE_OTP_PENDING")));
+    String jwt = JwtProvider.generateFlashToken(auth);
+    
+    mailService.sendTestEmail(email, "Recuperación de contraseña",
+        "Tu código OTP para recuperar la contraseña es: " + otp);
+
+    return AuthResult.ok(jwt);
+  }
+
+  public AuthResult<String> verifyRecoveryOtp(String email, String inputOtp) {
+    if (otpService.isBlocked(email)) {
+       return AuthResult.error("Has superado el límite de intentos", HttpStatus.BAD_REQUEST);
+    }
+    if (!otpService.validate(email, inputOtp)) {
+       return AuthResult.error("Código OTP incorrecto o expirado", HttpStatus.BAD_REQUEST);
+    }
+    otpService.deleteOtp(email);
+
+    Authentication auth = new UsernamePasswordAuthenticationToken(email, null,
+        List.of(new SimpleGrantedAuthority("ROLE_CHANGE_PASSWORD")));
+    String jwt = JwtProvider.generateFlashToken(auth);
+
+    return AuthResult.ok(jwt);
+  }
+
+  public AuthResult<String> changePassword(String email, String newPassword, String repeatedPassword) {
+    if (!newPassword.equals(repeatedPassword)) {
+      return AuthResult.error("Las contraseñas no coinciden", HttpStatus.BAD_REQUEST);
+    }
+    
+    String encodedPassword = patientService.getPasswordEncoder().encode(newPassword);
+    
+    var patientOpt = patientRepository.findByEmail(email);
+    if (patientOpt.isPresent()) {
+      var patient = patientOpt.get();
+      patient.setPassword(encodedPassword);
+      patientRepository.save(patient);
+      return AuthResult.ok("Contraseña actualizada exitosamente");
+    }
+
+    var doctorOpt = doctorRepository.findByEmail(email);
+    if (doctorOpt.isPresent()) {
+      var doctor = doctorOpt.get();
+      doctor.setPassword(encodedPassword);
+      doctorRepository.save(doctor);
+      return AuthResult.ok("Contraseña actualizada exitosamente");
+    }
+
+    var operatorOpt = operatorRepository.findByEmail(email);
+    if (operatorOpt.isPresent()) {
+      var operator = operatorOpt.get();
+      operator.setPassword(encodedPassword);
+      operatorRepository.save(operator);
+      return AuthResult.ok("Contraseña actualizada exitosamente");
+    }
+
+    return AuthResult.error("Usuario no encontrado", HttpStatus.NOT_FOUND);
+  }
 }

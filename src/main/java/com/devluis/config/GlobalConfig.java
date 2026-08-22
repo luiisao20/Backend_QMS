@@ -54,6 +54,10 @@ public class GlobalConfig {
             .requestMatchers("/turns/**").authenticated()
             .requestMatchers("/ws-turns/**").authenticated()
             .requestMatchers("/auth/me").authenticated()
+            .requestMatchers("/auth/recover-password/verify-otp").hasAuthority("ROLE_OTP_PENDING")
+            .requestMatchers("/auth/recover-password/change").hasAuthority("ROLE_CHANGE_PASSWORD")
+            .requestMatchers("/auth/recover-password/init").permitAll()
+            .requestMatchers("/patients/**").authenticated()
             .anyRequest().permitAll()) // Permitimos todos los endpoints de momento
         .addFilterBefore(jwtValidator, BasicAuthenticationFilter.class);
     return http.build();

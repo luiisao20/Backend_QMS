@@ -155,4 +155,55 @@ public class AuthController {
     }
     return ResponseEntity.ok(result.getData());
   }
+
+  @PostMapping("/recover-password/init")
+  public ResponseEntity<?> initPasswordRecovery(
+      @Valid @RequestBody com.devluis.types.RecoverPasswordInitBody body,
+      HttpServletResponse res) {
+    var result = authService.initPasswordRecovery(body.getEmail());
+    if (!result.isSuccess()) {
+      return Helper.getResponseMessage(result.getMessage(), result.getStatus());
+    }
+    // Token with ROLE_OTP_PENDING for 5 minutes
+    Helper.addJwtCookie(res, result.getData(), 300);
+    return ResponseEntity.ok(Map.of("Message", "Se ha enviado un código OTP a tu correo"));
+  }
+
+  @PostMapping("/recover-password/verify-otp")
+  public ResponseEntity<?> verifyRecoveryOtp(
+      @Valid @RequestBody com.devluis.types.VerifyOtpBody body,
+      HttpServletRequest req,
+      HttpServletResponse res,
+      Authentication auth) {
+    String email = auth.getName();
+    var result = authService.verifyRecoveryOtp(email, body.getOtp());
+    if (!result.isSuccess()) {
+      return Helper.getResponseMessage(result.getMessage(), result.getStatus());
+    }
+    // Token with ROLE_CHANGE_PASSWORD for 10 minutes
+    Helper.addJwtCookie(res, result.getData(), 600);
+    return ResponseEntity.ok(Map.of("Message", "Código verificado correctamente"));
+  }
+
+  @PostMapping("/recover-password/change")
+  public ResponseEntity<?> changePassword(
+      @Valid @RequestBody com.devluis.types.ChangePasswordBody body,
+      HttpServletRequest req,
+      HttpServletResponse res,
+      Authentication auth) {
+    String email = auth.getName();
+    var result = authService.changePassword(email, body.getPassword(), body.getRepeatedPassword());
+    if (!result.isSuccess()) {
+      return Helper.getResponseMessage(result.getMessage(), result.getStatus());
+    }
+    
+    // Clear the cookie once the password is changed
+    jakarta.servlet.http.Cookie cookie = new jakarta.servlet.http.Cookie("jwt", null);
+    cookie.setPath("/");
+    cookie.setHttpOnly(true);
+    cookie.setMaxAge(0);
+    res.addCookie(cookie);
+
+    return ResponseEntity.ok(Map.of("Message", result.getData()));
+  }
 }

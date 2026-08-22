@@ -24,7 +24,6 @@ public class OperatorDTO {
     @NotBlank(message = "El correo es requerido")
     private String email;
 
-    @NotBlank(message = "La contraseña es requerida")
     private String password;
 
     @NotBlank(message = "El nombre es requerido")
