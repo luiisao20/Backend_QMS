@@ -10,7 +10,11 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
+import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/services")
@@ -22,6 +26,15 @@ public class ServicioController {
   @PostMapping
   public ResponseEntity<ServicioDTO> create(@Valid @RequestBody ServicioDTO dto) {
     return new ResponseEntity<>(servicioService.create(dto), HttpStatus.CREATED);
+  }
+
+  @GetMapping("/my-services")
+  public ResponseEntity<List<ServicioDTO>> getMyServices(Authentication authentication) {
+    if (authentication == null || authentication.getName() == null) {
+      return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+    }
+    UUID doctorId = UUID.fromString(authentication.getName());
+    return ResponseEntity.ok(servicioService.getMyServices(doctorId));
   }
 
   @GetMapping

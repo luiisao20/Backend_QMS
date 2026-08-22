@@ -1,5 +1,7 @@
 package com.devluis.controller;
 
+import java.util.Map;
+
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
@@ -46,9 +48,9 @@ public class TurnController {
       return ResponseEntity.ok(turnService.markAsTreated(id, auth.getName()));
     } catch (RuntimeException e) {
       if (e.getMessage().contains("permisos")) {
-        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(java.util.Map.of("error", e.getMessage()));
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of("error", e.getMessage()));
       }
-      return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(java.util.Map.of("error", e.getMessage()));
+      return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("error", e.getMessage()));
     }
   }
 
@@ -58,9 +60,9 @@ public class TurnController {
       return ResponseEntity.ok(turnService.cancelTurn(id, auth.getName()));
     } catch (RuntimeException e) {
       if (e.getMessage().contains("permisos")) {
-        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(java.util.Map.of("error", e.getMessage()));
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of("error", e.getMessage()));
       }
-      return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(java.util.Map.of("error", e.getMessage()));
+      return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("error", e.getMessage()));
     }
   }
 }

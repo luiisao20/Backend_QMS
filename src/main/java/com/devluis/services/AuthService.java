@@ -34,6 +34,9 @@ public class AuthService {
   private final PatientService patientService;
   private final OperatorService operatorService;
   private final OtpService otpService;
+  private final com.devluis.repository.PatientRepository patientRepository;
+  private final com.devluis.repository.DoctorRepository doctorRepository;
+  private final com.devluis.repository.OperatorRepository operatorRepository;
 
   @Data
   @Builder
@@ -163,6 +166,30 @@ public class AuthService {
     return AuthResult.ok(RegistrationResult.builder()
         .authResponse(buildAuthResponse(patientRegistered, "Registro culminado con éxito"))
         .jwtToken(jwt).build());
+  }
+
+  public AuthResult<AuthResponse> validateSession(Authentication auth) {
+    try {
+      java.util.UUID uuid = java.util.UUID.fromString(auth.getName());
+      String role = auth.getAuthorities().stream().findFirst().map(a -> a.getAuthority()).orElse("");
+
+      if (role.equals("ROLE_PATIENT")) {
+        Patient patient = patientRepository.findById(uuid)
+            .orElseThrow(() -> new BadCredentialsException("Paciente no encontrado"));
+        return AuthResult.ok(buildAuthResponse(patient, "Sesión válida"));
+      } else if (role.equals("ROLE_DOCTOR")) {
+        com.devluis.entity.Doctor doctor = doctorRepository.findById(uuid)
+            .orElseThrow(() -> new BadCredentialsException("Doctor no encontrado"));
+        return AuthResult.ok(buildAuthResponse(doctor, "Sesión válida"));
+      } else if (role.equals("ROLE_EMPLOYEE") || role.equals("ROLE_ADMIN")) {
+        Operator operator = operatorRepository.findById(uuid)
+            .orElseThrow(() -> new BadCredentialsException("Operador no encontrado"));
+        return AuthResult.ok(buildAuthResponse(operator, "Sesión válida"));
+      }
+      return AuthResult.error("Rol no reconocido", HttpStatus.FORBIDDEN);
+    } catch (Exception e) {
+      return AuthResult.error("Sesión inválida o expirada", HttpStatus.UNAUTHORIZED);
+    }
   }
 
   private AuthResponse buildAuthResponse(Patient user, String message) {

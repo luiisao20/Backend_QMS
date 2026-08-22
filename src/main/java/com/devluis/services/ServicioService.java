@@ -9,6 +9,10 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
+import java.util.List;
+import java.util.UUID;
+import java.util.stream.Collectors;
+
 @Service
 @Data
 public class ServicioService {
@@ -19,6 +23,11 @@ public class ServicioService {
     Servicio servicio = mapToEntity(dto);
     Servicio saved = serviceRepository.save(servicio);
     return mapToDTO(saved);
+  }
+
+  public List<ServicioDTO> getMyServices(UUID doctorId) {
+    List<Servicio> services = serviceRepository.findServicesByDoctorId(doctorId);
+    return services.stream().map(this::mapToDTO).collect(Collectors.toList());
   }
 
   public Page<ServicioDTO> getAll(Pageable pageable) {

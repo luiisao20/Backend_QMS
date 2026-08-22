@@ -32,6 +32,7 @@ public class TurnService {
   private final ScheduleRepository scheduleRepository;
   private final com.devluis.repository.OperatorRepository operatorRepository;
   private final org.springframework.messaging.simp.SimpMessagingTemplate messagingTemplate;
+  private final MailService mailService;
 
   public TurnDTO create(TurnDTO dto, String authName) {
     // 1. Obtener el paciente a partir de la autenticación
@@ -63,6 +64,7 @@ public class TurnService {
     Turn saved = turnRepository.save(turn);
     TurnDTO savedDTO = mapToDTO(saved);
     broadcastTurnUpdate(saved, savedDTO);
+    sendTurnEmail(patient, schedule, nextOrder);
     return savedDTO;
   }
 
@@ -103,6 +105,7 @@ public class TurnService {
     Turn saved = turnRepository.save(turn);
     TurnDTO savedDTO = mapToDTO(saved);
     broadcastTurnUpdate(saved, savedDTO);
+    sendTurnEmail(patient, schedule, nextOrder);
     return savedDTO;
   }
 
@@ -231,9 +234,46 @@ public class TurnService {
   }
 
   private void broadcastTurnUpdate(Turn turn, TurnDTO turnDTO) {
-    if (turn.getSchedule() != null && turn.getSchedule().getService() != null && turn.getSchedule().getDate() != null) {
-      String topic = "/topic/turns/" + turn.getSchedule().getService().getId() + "/" + turn.getSchedule().getDate();
+    // Canal por establecimiento (para pantallas de sala de espera)
+    if (turn.getSchedule() != null && turn.getSchedule().getStablishment() != null && turn.getSchedule().getDate() != null) {
+      String topic = "/topic/stablishment/" + turn.getSchedule().getStablishment().getId() + "/" + turn.getSchedule().getDate();
       messagingTemplate.convertAndSend(topic, turnDTO);
+    }
+
+    // Canal por doctor, servicio y fecha usando autenticación
+    if (turn.getSchedule() != null && turn.getSchedule().getDoctor() != null && turn.getSchedule().getService() != null && turn.getSchedule().getDate() != null) {
+      String doctorUuid = turn.getSchedule().getDoctor().getUuid().toString();
+      // El cliente se suscribirá a: /user/topic/service/{serviceId}/{date}
+      String destination = "/topic/service/" + turn.getSchedule().getService().getId() + "/" + turn.getSchedule().getDate();
+      messagingTemplate.convertAndSendToUser(doctorUuid, destination, turnDTO);
+    }
+  }
+
+  private void sendTurnEmail(Patient patient, Schedule schedule, int turnOrder) {
+    try {
+      String serviceName = schedule.getService() != null ? schedule.getService().getName() : "N/A";
+      String date = schedule.getDate() != null ? schedule.getDate().toString() : "N/A";
+      String hour = schedule.getHour() != null ? schedule.getHour().toString() : "N/A";
+      String stablishmentName = schedule.getStablishment() != null ? schedule.getStablishment().getName() : "N/A";
+      String doctorFullName = schedule.getDoctor() != null
+          ? schedule.getDoctor().getFirstName() + " " + schedule.getDoctor().getLastName()
+          : "N/A";
+
+      mailService.sendTurnCreatedEmail(
+          patient.getEmail(),
+          patient.getFirstName(),
+          patient.getLastName(),
+          patient.getCi(),
+          turnOrder,
+          serviceName,
+          date,
+          hour,
+          stablishmentName,
+          doctorFullName
+      );
+    } catch (Exception e) {
+      // Log del error pero no interrumpimos la creación del turno
+      System.err.println("Error al enviar correo de notificación: " + e.getMessage());
     }
   }
 }

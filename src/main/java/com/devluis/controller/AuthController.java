@@ -7,6 +7,7 @@ import java.util.Map;
 
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 
@@ -144,5 +145,14 @@ public class AuthController {
     } catch (RuntimeException e) {
       return Helper.getResponseMessage(e.getMessage(), org.springframework.http.HttpStatus.BAD_REQUEST);
     }
+  }
+
+  @GetMapping("/me")
+  public ResponseEntity<?> validateSession(Authentication auth) {
+    var result = authService.validateSession(auth);
+    if (!result.isSuccess()) {
+      return Helper.getResponseMessage(result.getMessage(), result.getStatus());
+    }
+    return ResponseEntity.ok(result.getData());
   }
 }

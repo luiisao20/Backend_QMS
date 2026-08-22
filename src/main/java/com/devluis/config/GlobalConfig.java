@@ -53,6 +53,7 @@ public class GlobalConfig {
         .authorizeHttpRequests(auth -> auth
             .requestMatchers("/turns/**").authenticated()
             .requestMatchers("/ws-turns/**").authenticated()
+            .requestMatchers("/auth/me").authenticated()
             .anyRequest().permitAll()) // Permitimos todos los endpoints de momento
         .addFilterBefore(jwtValidator, BasicAuthenticationFilter.class);
     return http.build();
