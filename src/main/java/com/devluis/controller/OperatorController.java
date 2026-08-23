@@ -65,4 +65,20 @@ public class OperatorController {
     operatorService.deleteOperator(id);
     return ResponseEntity.noContent().build();
   }
+
+  @PutMapping("/change-password")
+  public ResponseEntity<?> changeMyPassword(
+      @Valid @RequestBody com.devluis.types.ChangePasswordBody body,
+      org.springframework.security.core.Authentication auth) {
+    try {
+      if (!body.getPassword().equals(body.getRepeatedPassword())) {
+        return com.devluis.utils.Helper.getResponseMessage("Las contraseñas no coinciden", HttpStatus.BAD_REQUEST);
+      }
+      UUID uuid = UUID.fromString(auth.getName());
+      operatorService.updatePassword(uuid, body.getPassword());
+      return ResponseEntity.ok(java.util.Map.of("Message", "Contraseña actualizada exitosamente"));
+    } catch (RuntimeException e) {
+      return com.devluis.utils.Helper.getResponseMessage(e.getMessage(), HttpStatus.BAD_REQUEST);
+    }
+  }
 }

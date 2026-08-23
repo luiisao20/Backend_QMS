@@ -2,8 +2,12 @@ package com.devluis.controller;
 
 import com.devluis.dto.ScheduleDTO;
 import com.devluis.services.ScheduleService;
+import com.devluis.types.GenerateSchedulesBody;
+
 import jakarta.validation.Valid;
 import lombok.Data;
+
+import java.util.List;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -44,5 +48,11 @@ public class ScheduleController {
   public ResponseEntity<Void> delete(@PathVariable Long id) {
     scheduleService.delete(id);
     return ResponseEntity.noContent().build();
+  }
+
+  @PostMapping("/generate")
+  public ResponseEntity<List<ScheduleDTO>> generateSchedules(
+      @Valid @RequestBody GenerateSchedulesBody body) {
+    return new ResponseEntity<>(scheduleService.generateSchedules(body), HttpStatus.CREATED);
   }
 }

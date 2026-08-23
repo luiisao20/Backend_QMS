@@ -51,13 +51,15 @@ public class GlobalConfig {
         .httpBasic(Customizer.withDefaults())
         .formLogin(form -> form.disable())
         .authorizeHttpRequests(auth -> auth
-            .requestMatchers("/turns/**").authenticated()
+            .requestMatchers("/api/turns/**").authenticated()
             .requestMatchers("/ws-turns/**").authenticated()
             .requestMatchers("/auth/me").authenticated()
             .requestMatchers("/auth/recover-password/verify-otp").hasAuthority("ROLE_OTP_PENDING")
             .requestMatchers("/auth/recover-password/change").hasAuthority("ROLE_CHANGE_PASSWORD")
             .requestMatchers("/auth/recover-password/init").permitAll()
-            .requestMatchers("/patients/**").authenticated()
+            .requestMatchers("/api/patients/**").authenticated()
+            .requestMatchers("/api/doctors/change-password").authenticated()
+            .requestMatchers("/api/operators/change-password").authenticated()
             .anyRequest().permitAll()) // Permitimos todos los endpoints de momento
         .addFilterBefore(jwtValidator, BasicAuthenticationFilter.class);
     return http.build();

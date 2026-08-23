@@ -1,10 +1,14 @@
 package com.devluis.controller;
 
+import java.time.LocalDate;
 import java.util.Map;
+import java.util.UUID;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
+import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.format.annotation.DateTimeFormat.ISO;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
@@ -35,6 +39,19 @@ public class TurnController {
   @GetMapping
   public Page<TurnDTO> getAll(@PageableDefault(size = 10) Pageable pageable) {
     return turnService.getAll(pageable);
+  }
+
+  @GetMapping("/me")
+  public ResponseEntity<Page<TurnDTO>> getMyTurns(
+      @RequestParam(required = false) com.devluis.types.TurnStatus status,
+      @RequestParam(required = false) @DateTimeFormat(iso = ISO.DATE) LocalDate from,
+      @RequestParam(required = false) @DateTimeFormat(iso = ISO.DATE) LocalDate to,
+      @PageableDefault(size = 10) Pageable pageable,
+      Authentication auth) {
+    
+    UUID patientUuid = UUID.fromString(auth.getName());
+    Page<TurnDTO> myTurns = turnService.getTurnsForPatient(patientUuid, status, from, to, pageable);
+    return ResponseEntity.ok(myTurns);
   }
 
   @GetMapping("/{id}")

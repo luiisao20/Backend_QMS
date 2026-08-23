@@ -34,6 +34,13 @@ public class ScheduleService {
     com.devluis.entity.Stablishment stablishment = stablishmentRepository.findById(dto.getStablishment().getId())
         .orElseThrow(() -> new RuntimeException("Establecimiento no encontrado"));
 
+    if (doctor.getServices() == null || !doctor.getServices().contains(servicio)) {
+        throw new RuntimeException("El doctor seleccionado no tiene asignado este servicio");
+    }
+    if (doctor.getStablishments() == null || !doctor.getStablishments().contains(stablishment)) {
+        throw new RuntimeException("El doctor seleccionado no está asignado a este establecimiento");
+    }
+
     Schedule schedule = Schedule.builder()
         .date(dto.getDate())
         .hour(dto.getHour())
@@ -138,5 +145,56 @@ public class ScheduleService {
         .service(servicioDTO)
         .stablishment(stablishmentDTO)
         .build();
+  }
+  public java.util.List<ScheduleDTO> generateSchedules(com.devluis.types.GenerateSchedulesBody body) {
+    Servicio servicio = serviceRepository.findById(body.getServiceId())
+        .orElseThrow(() -> new RuntimeException("Servicio no encontrado"));
+
+    com.devluis.entity.Stablishment stablishment = stablishmentRepository.findById(body.getStablishmentId())
+        .orElseThrow(() -> new RuntimeException("Establecimiento no encontrado"));
+
+    Doctor doctor = null;
+    if (body.getDoctorId() != null) {
+      doctor = doctorRepository.findById(body.getDoctorId())
+          .orElseThrow(() -> new RuntimeException("Doctor no encontrado"));
+
+      if (doctor.getServices() == null || !doctor.getServices().contains(servicio)) {
+          throw new RuntimeException("El doctor seleccionado no tiene asignado este servicio");
+      }
+      if (doctor.getStablishments() == null || !doctor.getStablishments().contains(stablishment)) {
+          throw new RuntimeException("El doctor seleccionado no está asignado a este establecimiento");
+      }
+    }
+
+    java.time.LocalTime current = java.time.LocalTime.of(8, 0);
+    java.time.LocalTime end = java.time.LocalTime.of(17, 0);
+    java.time.LocalTime breakStart = java.time.LocalTime.of(12, 0);
+    java.time.LocalTime breakEnd = java.time.LocalTime.of(13, 0);
+
+    java.util.List<Schedule> generated = new java.util.ArrayList<>();
+
+    while (!current.plusMinutes(body.getIntervalMinutes()).isAfter(end)) {
+      java.time.LocalTime slotEnd = current.plusMinutes(body.getIntervalMinutes());
+
+      if (current.isBefore(breakEnd) && slotEnd.isAfter(breakStart)) {
+        current = breakEnd;
+        continue;
+      }
+
+      Schedule schedule = Schedule.builder()
+          .date(body.getDate())
+          .hour(current)
+          .doctor(doctor)
+          .service(servicio)
+          .stablishment(stablishment)
+          .status(com.devluis.types.ScheduleStatus.STATUS_FREE)
+          .build();
+      generated.add(schedule);
+
+      current = slotEnd;
+    }
+
+    java.util.List<Schedule> saved = scheduleRepository.saveAll(generated);
+    return saved.stream().map(this::mapToDTO).toList();
   }
 }

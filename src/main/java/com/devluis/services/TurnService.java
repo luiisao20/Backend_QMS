@@ -1,5 +1,6 @@
 package com.devluis.services;
 
+import java.time.LocalDate;
 import java.util.UUID;
 
 import org.springframework.data.domain.Page;
@@ -20,6 +21,7 @@ import com.devluis.repository.PatientRepository;
 import com.devluis.repository.ScheduleRepository;
 import com.devluis.repository.TurnRepository;
 import com.devluis.types.ScheduleStatus;
+import com.devluis.types.TurnStatus;
 
 import lombok.Data;
 
@@ -111,6 +113,15 @@ public class TurnService {
 
   public Page<TurnDTO> getAll(Pageable pageable) {
     return turnRepository.findAll(pageable).map(this::mapToDTO);
+  }
+
+  public Page<TurnDTO> getTurnsForPatient(
+      UUID patientUuid, 
+      TurnStatus status, 
+      LocalDate fromDate, 
+      LocalDate toDate, 
+      Pageable pageable) {
+    return turnRepository.findTurnsForPatient(patientUuid, status, fromDate, toDate, pageable).map(this::mapToDTO);
   }
 
   public TurnDTO getById(Long id) {

@@ -12,6 +12,7 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.userdetails.User;
 import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
@@ -21,10 +22,11 @@ import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
-public class DoctorService implements org.springframework.security.core.userdetails.UserDetailsService {
+public class DoctorService implements UserDetailsService {
   private final DoctorRepository doctorRepository;
   private final PasswordEncoder passwordEncoder;
   private final com.devluis.repository.StablishmentRepository stablishmentRepository;
+  private final com.devluis.repository.ServiceRepository serviceRepository;
 
   public Authentication loginEmail(String email, String password) {
     try {
@@ -154,6 +156,29 @@ public class DoctorService implements org.springframework.security.core.userdeta
       return mapToDTO(doctorRepository.save(doctor));
   }
 
+  public void updatePassword(UUID id, String newPassword) {
+    Doctor doctor = doctorRepository.findById(id)
+        .orElseThrow(() -> new RuntimeException("Doctor no encontrado"));
+    doctor.setPassword(passwordEncoder.encode(newPassword));
+    doctorRepository.save(doctor);
+  }
+
+  public DoctorDTO assignToService(UUID id, Long serviceId) {
+      Doctor doctor = doctorRepository.findById(id)
+          .orElseThrow(() -> new RuntimeException("Doctor no encontrado"));
+      
+      com.devluis.entity.Servicio servicio = serviceRepository.findById(serviceId)
+          .orElseThrow(() -> new RuntimeException("Servicio no encontrado"));
+          
+      if (doctor.getServices() == null) {
+          doctor.setServices(new java.util.ArrayList<>());
+      }
+      if (!doctor.getServices().contains(servicio)) {
+          doctor.getServices().add(servicio);
+      }
+      return mapToDTO(doctorRepository.save(doctor));
+  }
+
   private Doctor mapToEntity(DoctorDTO dto) {
     return Doctor.builder()
         .email(dto.getEmail())
@@ -174,6 +199,12 @@ public class DoctorService implements org.springframework.security.core.userdeta
         .speciality(doctor.getSpeciality())
         .gender(doctor.getGender())
         .ci(doctor.getCi())
+        .stablishments(doctor.getStablishments() != null ? doctor.getStablishments().stream()
+            .map(s -> com.devluis.dto.StablishmentDTO.builder().id(s.getId()).name(s.getName()).address(s.getAddress()).build())
+            .toList() : null)
+        .services(doctor.getServices() != null ? doctor.getServices().stream()
+            .map(s -> com.devluis.dto.ServicioDTO.builder().id(s.getId()).name(s.getName()).price(s.getPrice()).discount(s.getDiscount()).build())
+            .toList() : null)
         .build();
   }
 }

@@ -40,4 +40,6 @@ public class DoctorDTO {
     private String ci;
 
     private java.util.List<StablishmentDTO> stablishments;
+    
+    private java.util.List<ServicioDTO> services;
 }

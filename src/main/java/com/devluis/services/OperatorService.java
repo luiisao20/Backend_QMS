@@ -11,6 +11,7 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.userdetails.User;
 import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
@@ -20,7 +21,7 @@ import java.util.Optional;
 
 @Service
 @Data
-public class OperatorService implements org.springframework.security.core.userdetails.UserDetailsService {
+public class OperatorService implements UserDetailsService {
   private final OperatorRepository operatorRepository;
   private final PasswordEncoder passwordEncoder;
   private final com.devluis.repository.StablishmentRepository stablishmentRepository;
@@ -72,6 +73,10 @@ public class OperatorService implements org.springframework.security.core.userde
 
     operator.setFirstName(dto.getFirstName());
     operator.setLastName(dto.getLastName());
+    
+    if (dto.getRole() != null) {
+      operator.setRole(dto.getRole());
+    }
 
     if (!operator.getEmail().equals(dto.getEmail())) {
       if (operatorRepository.findByEmail(dto.getEmail()).isPresent()) {
@@ -116,6 +121,13 @@ public class OperatorService implements org.springframework.security.core.userde
       return mapToDTO(operatorRepository.save(operator));
   }
 
+  public void updatePassword(UUID id, String newPassword) {
+    Operator operator = operatorRepository.findById(id)
+        .orElseThrow(() -> new RuntimeException("Operador no encontrado"));
+    operator.setPassword(passwordEncoder.encode(newPassword));
+    operatorRepository.save(operator);
+  }
+
   private Operator mapToEntity(OperatorDTO dto) {
     return Operator.builder()
         .email(dto.getEmail())
@@ -131,6 +143,7 @@ public class OperatorService implements org.springframework.security.core.userde
         .email(operator.getEmail())
         .firstName(operator.getFirstName())
         .lastName(operator.getLastName())
+        .role(operator.getRole())
         .build();
   }
 }
