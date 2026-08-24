@@ -109,6 +109,37 @@ public class AuthController {
     return ResponseEntity.ok(Map.of("Message", "Código Otp enviado al correo"));
   }
 
+  /**
+   * Verifica el OTP del REGISTRO. El de recuperación de contraseña es otro,
+   * `/recover-password/verify-otp`, y son dos porque emiten autoridades
+   * distintas: uno habilita a completar un registro, el otro a cambiar una
+   * contraseña, y unificarlos dejaría que un token sirva para las dos cosas.
+   *
+   * Devuelve un token flash con `ROLE_REGISTER_VERIFIED`. `register-patient`
+   * TODAVÍA acepta el token de `ROLE_OTP_PENDING`, así que este endpoint es
+   * aditivo y no rompe la app publicada — ver el doc de
+   * `AuthService.verifyRegistrationOtp` para el segundo paso.
+   */
+  @PostMapping("/verify-otp")
+  public ResponseEntity<?> verifyRegistrationOtp(
+      @Valid @RequestBody com.devluis.types.VerifyOtpBody body,
+      HttpServletRequest req,
+      HttpServletResponse res,
+      Authentication auth) {
+    String email = auth.getName();
+    var result = authService.verifyRegistrationOtp(email, body.getOtp());
+
+    if (!result.isSuccess()) {
+      return Helper.getResponseMessage(result.getMessage(), result.getStatus());
+    }
+
+    // 300s, la misma ventana que el token de init: verificar el código no debe
+    // dar más tiempo del que ya había para terminar de registrarse.
+    Helper.addJwtCookie(res, result.getData(), 300);
+
+    return ResponseEntity.ok(Map.of("Message", "Código verificado correctamente"));
+  }
+
   @PostMapping("/register-patient")
   public ResponseEntity<?> registerPatient(
       @Valid @RequestBody PatientDTO dto,

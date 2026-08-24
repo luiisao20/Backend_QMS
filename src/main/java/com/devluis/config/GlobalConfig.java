@@ -57,9 +57,26 @@ public class GlobalConfig {
             .requestMatchers("/auth/recover-password/verify-otp").hasAuthority("ROLE_OTP_PENDING")
             .requestMatchers("/auth/recover-password/change").hasAuthority("ROLE_CHANGE_PASSWORD")
             .requestMatchers("/auth/recover-password/init").permitAll()
+            // El OTP del registro: solo con el token flash que emitió
+            // `init-registration-patient`, igual que su gemelo de recuperación.
+            .requestMatchers("/auth/verify-otp").hasAuthority("ROLE_OTP_PENDING")
             .requestMatchers("/api/patients/**").authenticated()
             .requestMatchers("/api/doctors/change-password").authenticated()
             .requestMatchers("/api/operators/change-password").authenticated()
+            // Catálogos y métricas del panel administrativo. VAN ANTES del
+            // `anyRequest().permitAll()` de abajo, que es lo único que los
+            // separa de quedar públicos — el mismo desfase que ya dejó
+            // `/api/turns` abierto cuando el matcher decía `/turns/**`.
+            //
+            // Son de administración, así que la regla es autenticado y punto. Si
+            // más adelante la app móvil necesita LEER especialidades para armar
+            // un filtro, eso se abre con un matcher explícito para el GET, no
+            // bajando toda la ruta.
+            .requestMatchers("/api/specialities/**").authenticated()
+            .requestMatchers("/api/holidays/**").authenticated()
+            .requestMatchers("/api/block-reasons/**").authenticated()
+            .requestMatchers("/api/time-off/**").authenticated()
+            .requestMatchers("/api/metrics/**").authenticated()
             .anyRequest().permitAll()) // Permitimos todos los endpoints de momento
         .addFilterBefore(jwtValidator, BasicAuthenticationFilter.class);
     return http.build();

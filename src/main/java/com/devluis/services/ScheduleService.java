@@ -58,6 +58,31 @@ public class ScheduleService {
         .map(this::mapToDTO);
   }
 
+  /**
+   * Búsqueda de disponibilidad. Todo parámetro es opcional y en null no filtra.
+   *
+   * Es lo único que le faltaba a este endpoint para que la pantalla "Agendar" de
+   * la app móvil funcione de punta a punta: con `doctorId` + `serviceId` +
+   * `status=STATUS_FREE` salen las fechas distintas (paso 2) y las horas de cada
+   * fecha (paso 3), y crear el turno ya funcionaba. El calendario del panel usa
+   * la misma consulta pidiendo solo un rango de fechas.
+   *
+   * `getAll(Pageable)` sigue existiendo y sin filtros: hay consumidores que solo
+   * quieren paginar, y cambiarle la firma rompería sus llamadas.
+   */
+  public Page<ScheduleDTO> search(
+      java.util.UUID doctorId,
+      Long serviceId,
+      Long stablishmentId,
+      java.time.LocalDate from,
+      java.time.LocalDate to,
+      com.devluis.types.ScheduleStatus status,
+      Pageable pageable) {
+    return scheduleRepository
+        .search(doctorId, serviceId, stablishmentId, from, to, status, pageable)
+        .map(this::mapToDTO);
+  }
+
   public ScheduleDTO getById(Long id) {
     Schedule schedule = scheduleRepository.findById(id)
         .orElseThrow(() -> new RuntimeException("Horario no encontrado"));

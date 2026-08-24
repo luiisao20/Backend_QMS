@@ -1,12 +1,19 @@
 # App móvil (Flutter) — endpoints que faltan
 
-> **Auth está completa. Todo lo demás está dibujado pero desconectado.**
-> `features/auth` es la única vertical con `data/`, `domain/` y `presentation/`.
-> `features/home` tiene **solo `presentation/`**: las cuatro pestañas del home usan
-> datos hardcodeados, y la propia UI lo dice ("Datos de ejemplo.").
+> ## ⚠️ ESTA COPIA ESTÁ DESACTUALIZADA — 2026-08-23
 >
-> Esto es qué endpoints hacen falta para conectarlas, en orden de cuánto desbloquean
-> por unidad de trabajo.
+> **La versión al día es `docs/flutter-endpoints-faltantes.md`**, en la raíz del
+> monorepo. Ese archivo tiene una tabla de estado sección por sección. Este es el
+> resumen de una línea: **casi todo lo que este documento pide ya está hecho**, en
+> el backend y en la app.
+>
+> El cuerpo se dejó intacto a propósito — el razonamiento de cada sección sigue
+> siendo válido y es lo que explica *por qué* cada endpoint tiene la forma que
+> tiene. Lo que cambió es el estado, no el análisis.
+>
+> Sigue sin hacer, y con motivo declarado en el doc canónico: `POST /auth/logout`
+> (§2, no hace falta), y el historial clínico y la cobertura de §4 (no hay tablas
+> y la recomendación es no inventarlas).
 
 **Nota:** recuperación de contraseña ya está en curso, así que va listada solo para
 completitud, sin plan.

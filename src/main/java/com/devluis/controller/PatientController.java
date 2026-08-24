@@ -34,6 +34,30 @@ public class PatientController {
     return ResponseEntity.ok(patients);
   }
 
+  /**
+   * El perfil del paciente autenticado.
+   *
+   * `auth.getName()` YA ES EL UUID del paciente, no su email:
+   * `PatientService.loadUserByUsername` construye el `UserDetails` con
+   * `.username(patient.getUuid().toString())`, y `JwtProvider` lo guarda en el
+   * claim `uuid`. Es la misma suposición sobre la que `TurnService.create` y el
+   * `PUT /me` de acá abajo ya funcionan — no la cambien sin revisar los tres.
+   *
+   * El token flash de registro lleva el EMAIL como subject en vez del uuid, así
+   * que este endpoint solo sirve con el token de login de 24h.
+   */
+  @GetMapping("/me")
+  public ResponseEntity<?> getMyProfile(Authentication auth) {
+    try {
+      UUID uuid = UUID.fromString(auth.getName());
+      return ResponseEntity.ok(patientService.getPatientById(uuid));
+    } catch (IllegalArgumentException e) {
+      return Helper.getResponseMessage("El token no corresponde a un paciente", HttpStatus.UNAUTHORIZED);
+    } catch (RuntimeException e) {
+      return Helper.getResponseMessage(e.getMessage(), HttpStatus.NOT_FOUND);
+    }
+  }
+
   @PutMapping("/me")
   public ResponseEntity<?> updateMyProfile(
       @RequestBody PatientDTO patientDTO,

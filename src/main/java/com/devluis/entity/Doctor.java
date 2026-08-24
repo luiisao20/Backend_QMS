@@ -41,6 +41,25 @@ public class Doctor {
   @Column(nullable = false)
   private String speciality;
 
+  /**
+   * La especialidad como fila del catálogo `specialities`.
+   *
+   * CONVIVE A PROPÓSITO con el String de arriba, y las dos columnas no son dos
+   * fuentes de verdad: `DoctorService` copia el nombre del catálogo al String
+   * cada vez que llega un `specialityId`, así que toda escritura NUEVA queda
+   * consistente y el texto pasa a ser un espejo, no un dato independiente.
+   *
+   * Es nullable porque las filas que ya existen tienen texto libre sin
+   * equivalente en el catálogo («cardiologia», «Cardiología»), y normalizarlas
+   * es una tarea de datos: hay que decidir a mano qué fila del catálogo le
+   * corresponde a cada variante. Recién cuando no quede ningún doctor con
+   * `specialityRef` en null se puede borrar la columna de texto — antes de eso,
+   * agrupar por especialidad tiene que seguir leyendo el String.
+   */
+  @ManyToOne(fetch = FetchType.LAZY)
+  @JoinColumn(name = "speciality_id")
+  private Speciality specialityRef;
+
   @Enumerated(EnumType.STRING)
   private Gender gender;
 

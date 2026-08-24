@@ -30,8 +30,27 @@ public class DoctorDTO {
     @NotBlank(message = "El apellido es requerido")
     private String lastName;
 
-    @NotBlank(message = "La especialidad es requerida")
+    /**
+     * La especialidad como texto libre.
+     *
+     * Ya NO lleva @NotBlank: desde que existe el catálogo de especialidades, un
+     * cliente puede mandar specialityId en su lugar y el servicio copia el
+     * nombre desde ahí. Que llegue exactamente uno de los dos lo valida
+     * DoctorService.resolveSpeciality, porque una anotación de campo no puede
+     * expresar "uno u otro".
+     *
+     * Los clientes que ya existen mandan solo este campo y siguen funcionando.
+     */
     private String speciality;
+
+    /**
+     * Id de la fila del catálogo de especialidades.
+     *
+     * Cuando viene, GANA sobre el texto: el servicio resuelve el nombre desde el
+     * catálogo y lo copia al campo de arriba, así que las dos columnas no pueden
+     * quedar diciendo cosas distintas.
+     */
+    private Long specialityId;
 
     private Gender gender;
 

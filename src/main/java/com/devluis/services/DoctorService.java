@@ -27,6 +27,7 @@ public class DoctorService implements UserDetailsService {
   private final PasswordEncoder passwordEncoder;
   private final com.devluis.repository.StablishmentRepository stablishmentRepository;
   private final com.devluis.repository.ServiceRepository serviceRepository;
+  private final com.devluis.repository.SpecialityRepository specialityRepository;
 
   public Authentication loginEmail(String email, String password) {
     try {
@@ -93,6 +94,7 @@ public class DoctorService implements UserDetailsService {
     doctor.setEmail(dto.getEmail().toLowerCase());
     doctor.setPassword(passwordEncoder.encode(dto.getPassword()));
     doctor.setRole(Role.ROLE_DOCTOR);
+    resolveSpeciality(doctor, dto);
 
     Doctor saved = doctorRepository.save(doctor);
     return mapToDTO(saved);
@@ -104,9 +106,9 @@ public class DoctorService implements UserDetailsService {
 
     doctor.setFirstName(dto.getFirstName());
     doctor.setLastName(dto.getLastName());
-    doctor.setSpeciality(dto.getSpeciality());
     doctor.setGender(dto.getGender());
     doctor.setCi(dto.getCi());
+    resolveSpeciality(doctor, dto);
 
     if (!doctor.getEmail().equals(dto.getEmail())) {
       if (doctorRepository.findByEmail(dto.getEmail()).isPresent()) {
@@ -179,12 +181,46 @@ public class DoctorService implements UserDetailsService {
       return mapToDTO(doctorRepository.save(doctor));
   }
 
+  /**
+   * Decide la especialidad del doctor a partir del DTO, y es el único lugar
+   * donde se escribe.
+   *
+   * EL CATÁLOGO GANA SOBRE EL TEXTO. Si llega `specialityId`, se resuelve la
+   * fila y su nombre se COPIA a la columna de texto. Eso es lo que evita que
+   * `speciality` y `speciality_id` terminen diciendo cosas distintas: el texto
+   * pasa a ser un espejo del catálogo, no un dato independiente.
+   *
+   * Si no llega el id, se acepta el texto tal cual y `specialityRef` queda en
+   * null — es el camino que usan los clientes que ya existen, y por eso el
+   * `@NotBlank` del DTO se relajó: la regla real es "uno de los dos", que una
+   * anotación de campo no puede expresar.
+   */
+  private void resolveSpeciality(Doctor doctor, DoctorDTO dto) {
+    if (dto.getSpecialityId() != null) {
+      com.devluis.entity.Speciality speciality = specialityRepository.findById(dto.getSpecialityId())
+          .orElseThrow(() -> new RuntimeException("Especialidad no encontrada"));
+
+      if (!Boolean.TRUE.equals(speciality.getActive())) {
+        throw new RuntimeException("La especialidad seleccionada está desactivada");
+      }
+
+      doctor.setSpecialityRef(speciality);
+      doctor.setSpeciality(speciality.getName());
+      return;
+    }
+
+    if (dto.getSpeciality() == null || dto.getSpeciality().trim().isEmpty()) {
+      throw new RuntimeException("La especialidad es requerida");
+    }
+
+    doctor.setSpeciality(dto.getSpeciality().trim());
+  }
+
   private Doctor mapToEntity(DoctorDTO dto) {
     return Doctor.builder()
         .email(dto.getEmail())
         .firstName(dto.getFirstName())
         .lastName(dto.getLastName())
-        .speciality(dto.getSpeciality())
         .gender(dto.getGender())
         .ci(dto.getCi())
         .build();
@@ -197,6 +233,7 @@ public class DoctorService implements UserDetailsService {
         .firstName(doctor.getFirstName())
         .lastName(doctor.getLastName())
         .speciality(doctor.getSpeciality())
+        .specialityId(doctor.getSpecialityRef() != null ? doctor.getSpecialityRef().getId() : null)
         .gender(doctor.getGender())
         .ci(doctor.getCi())
         .stablishments(doctor.getStablishments() != null ? doctor.getStablishments().stream()

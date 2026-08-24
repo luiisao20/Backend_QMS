@@ -25,9 +25,14 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.Builder;
 import lombok.Data;
+import lombok.extern.slf4j.Slf4j;
 
 @Service
 @Data
+// `@Slf4j` y no `System.err.println` como en `TurnService.sendTurnEmail`:
+// `OtpService` ya usa este mismo patrón en este paquete, y un `System.err` se
+// saltea la configuración de logging del contenedor entero.
+@Slf4j
 public class AuthService {
   private final MailService mailService;
   private final DoctorService doctorService;
@@ -140,15 +145,62 @@ public class AuthService {
 
     String otp = otpService.generateOtp();
 
+    // GUARDAR EL OTP, no solo generarlo. Sin esta línea `otpStore` queda vacío
+    // para siempre y `OtpService.validate` devuelve false para cualquier código,
+    // incluso el correcto — el flujo de recuperación de contraseña sí lo hace
+    // (ver initPasswordRecovery), y el de registro no lo hacía.
+    otpService.saveOtp(body.getEmail(), otp);
+
     Authentication auth = new UsernamePasswordAuthenticationToken(body.getEmail(), null,
         List.of(new SimpleGrantedAuthority("ROLE_OTP_PENDING")));
     String jwt = JwtProvider.generateFlashToken(auth);
     SecurityContextHolder.getContext().setAuthentication(auth);
 
-    mailService.sendTestEmail(body.getEmail(), "Completa tu registro",
-        "Se ha generado un código OTP " + otp + " por favor ingrésalo en la plataforma para completar tu registro");
+    // ENVUELTO, y no es cosmético: esta llamada estaba sin try/catch con el
+    // `return` de abajo, así que cuando el relay SMTP contestaba
+    // "454 Relay access denied" la excepción subía, el token flash nunca se
+    // emitía y NADIE PODÍA REGISTRARSE. El patrón correcto ya existía en este
+    // repo: `TurnService.sendTurnEmail`. Un fallo de correo degrada, no tumba el
+    // flujo.
+    try {
+      mailService.sendTestEmail(body.getEmail(), "Completa tu registro",
+          "Se ha generado un código OTP " + otp + " por favor ingrésalo en la plataforma para completar tu registro");
+    } catch (Exception e) {
+      log.error("No se pudo enviar el correo de registro a {}: {}", body.getEmail(), e.getMessage());
+    }
 
     return AuthResult.ok(InitRegistrationResult.builder().jwtToken(jwt).build());
+  }
+
+  /**
+   * Valida el OTP del registro y devuelve un token flash nuevo.
+   *
+   * El endpoint que la app móvil declaraba y no existía. Ojo con lo que NO hace:
+   * no cambia el contrato de `register-patient`, que sigue aceptando el token
+   * `ROLE_OTP_PENDING` de `initRegistration`. Eso es a propósito — endurecerlo
+   * ahora rompería la app publicada, que hoy avanza de pantalla sin verificar
+   * nada. La autoridad nueva (`ROLE_REGISTER_VERIFIED`) existe para que
+   * `register-patient` pueda exigirla EN UN SEGUNDO PASO, una vez que la app
+   * llame a este endpoint.
+   *
+   * El OTP se borra al validar: un código de un solo uso que sigue sirviendo no
+   * es un código de un solo uso.
+   */
+  public AuthResult<String> verifyRegistrationOtp(String email, String inputOtp) {
+    if (otpService.isBlocked(email)) {
+      return AuthResult.error("Has superado el límite de intentos", HttpStatus.BAD_REQUEST);
+    }
+
+    if (!otpService.validate(email, inputOtp)) {
+      return AuthResult.error("El código no es válido", HttpStatus.BAD_REQUEST);
+    }
+
+    otpService.deleteOtp(email);
+
+    Authentication auth = new UsernamePasswordAuthenticationToken(email, null,
+        List.of(new SimpleGrantedAuthority("ROLE_REGISTER_VERIFIED")));
+
+    return AuthResult.ok(JwtProvider.generateFlashToken(auth));
   }
 
   public AuthResult<RegistrationResult> completeRegistration(String emailAuth, PatientDTO patient) {

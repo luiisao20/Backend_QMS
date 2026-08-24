@@ -3,15 +3,20 @@ package com.devluis.controller;
 import com.devluis.dto.ScheduleDTO;
 import com.devluis.services.ScheduleService;
 import com.devluis.types.GenerateSchedulesBody;
+import com.devluis.types.ScheduleStatus;
 
 import jakarta.validation.Valid;
 import lombok.Data;
 
+import java.time.LocalDate;
 import java.util.List;
+import java.util.UUID;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
+import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.format.annotation.DateTimeFormat.ISO;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -28,10 +33,26 @@ public class ScheduleController {
     return new ResponseEntity<>(scheduleService.create(dto), HttpStatus.CREATED);
   }
 
+  /**
+   * Listado de cupos con filtros OPCIONALES.
+   *
+   *   GET /api/schedules?doctorId=&serviceId=&stablishmentId=&from=&to=&status=
+   *
+   * Sin ningún parámetro se comporta exactamente igual que antes — pagina todo —
+   * así que ningún consumidor existente cambia. Con filtros es el buscador de
+   * disponibilidad que le faltaba a "Agendar" en la app móvil y el rango de
+   * fechas que le faltaba al calendario del panel.
+   */
   @GetMapping
   public Page<ScheduleDTO> getAll(
+      @RequestParam(required = false) UUID doctorId,
+      @RequestParam(required = false) Long serviceId,
+      @RequestParam(required = false) Long stablishmentId,
+      @RequestParam(required = false) @DateTimeFormat(iso = ISO.DATE) LocalDate from,
+      @RequestParam(required = false) @DateTimeFormat(iso = ISO.DATE) LocalDate to,
+      @RequestParam(required = false) ScheduleStatus status,
       @PageableDefault(size = 10) Pageable pageable) {
-    return scheduleService.getAll(pageable);
+    return scheduleService.search(doctorId, serviceId, stablishmentId, from, to, status, pageable);
   }
 
   @GetMapping("/{id}")
