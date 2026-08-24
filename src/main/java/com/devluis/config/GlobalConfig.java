@@ -6,6 +6,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.Customizer;
+import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
@@ -21,6 +22,7 @@ import com.devluis.jwt.JwtValidator;
 import jakarta.servlet.http.HttpServletResponse;
 
 @Configuration
+@EnableMethodSecurity
 public class GlobalConfig {
   private final JwtValidator jwtValidator;
   private final String corsAllowedOrigin;
@@ -51,6 +53,7 @@ public class GlobalConfig {
         .httpBasic(Customizer.withDefaults())
         .formLogin(form -> form.disable())
         .authorizeHttpRequests(auth -> auth
+            .requestMatchers("/api/turns/patient/**").hasAnyAuthority("ROLE_DOCTOR", "ROLE_EMPLOYEE", "ROLE_ADMIN")
             .requestMatchers("/api/turns/**").authenticated()
             .requestMatchers("/ws-turns/**").authenticated()
             .requestMatchers("/auth/me").authenticated()

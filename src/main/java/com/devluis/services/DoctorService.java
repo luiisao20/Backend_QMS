@@ -130,8 +130,17 @@ public class DoctorService implements UserDetailsService {
     doctorRepository.deleteById(id);
   }
 
+  public Page<DoctorDTO> getAll(String name, String ci, Pageable pageable) {
+    if ((name != null && !name.trim().isEmpty()) || (ci != null && !ci.trim().isEmpty())) {
+      String cleanName = (name != null && !name.trim().isEmpty()) ? name.trim() : null;
+      String cleanCi = (ci != null && !ci.trim().isEmpty()) ? ci.trim() : null;
+      return doctorRepository.findByFilters(cleanName, cleanCi, pageable).map(this::mapToDTO);
+    }
+    return doctorRepository.findAll(pageable).map(this::mapToDTO);
+  }
+
   public Page<DoctorDTO> getAll(Pageable pageable) {
-      return doctorRepository.findAll(pageable).map(this::mapToDTO);
+    return getAll(null, null, pageable);
   }
 
   public DoctorDTO getDoctorById(UUID id) {

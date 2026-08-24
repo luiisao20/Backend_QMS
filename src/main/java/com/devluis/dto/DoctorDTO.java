@@ -2,6 +2,7 @@ package com.devluis.dto;
 
 import java.util.UUID;
 import com.devluis.types.Gender;
+import com.fasterxml.jackson.annotation.JsonInclude;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -15,6 +16,7 @@ import jakarta.validation.constraints.Pattern;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
+@JsonInclude(JsonInclude.Include.NON_NULL)
 public class DoctorDTO {
     private UUID uuid;
 

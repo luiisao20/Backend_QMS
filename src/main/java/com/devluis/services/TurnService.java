@@ -121,7 +121,28 @@ public class TurnService {
       LocalDate fromDate, 
       LocalDate toDate, 
       Pageable pageable) {
-    return turnRepository.findTurnsForPatient(patientUuid, status, fromDate, toDate, pageable).map(this::mapToDTO);
+    
+    org.springframework.data.jpa.domain.Specification<Turn> spec = (root, query, cb) -> {
+      java.util.List<jakarta.persistence.criteria.Predicate> predicates = new java.util.ArrayList<>();
+
+      predicates.add(cb.equal(root.get("patient").get("uuid"), patientUuid));
+
+      if (status != null) {
+        predicates.add(cb.equal(root.get("status"), status));
+      }
+
+      if (fromDate != null) {
+        predicates.add(cb.greaterThanOrEqualTo(root.get("schedule").get("date"), fromDate));
+      }
+
+      if (toDate != null) {
+        predicates.add(cb.lessThanOrEqualTo(root.get("schedule").get("date"), toDate));
+      }
+
+      return cb.and(predicates.toArray(new jakarta.persistence.criteria.Predicate[0]));
+    };
+
+    return turnRepository.findAll(spec, pageable).map(this::mapToDTO);
   }
 
   public TurnDTO getById(Long id) {

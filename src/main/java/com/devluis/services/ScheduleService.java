@@ -53,9 +53,58 @@ public class ScheduleService {
     return mapToDTO(saved);
   }
 
+  public Page<ScheduleDTO> getAll(
+      java.time.LocalDate date, 
+      Long stablishmentId, 
+      java.util.UUID doctorId, 
+      String doctorName, 
+      Pageable pageable) {
+    
+    if (pageable.getSort().isUnsorted()) {
+      pageable = org.springframework.data.domain.PageRequest.of(
+          pageable.getPageNumber(),
+          pageable.getPageSize(),
+          org.springframework.data.domain.Sort.by(
+              org.springframework.data.domain.Sort.Order.asc("date"),
+              org.springframework.data.domain.Sort.Order.asc("hour")
+          )
+      );
+    }
+    
+    org.springframework.data.jpa.domain.Specification<Schedule> spec = (root, query, cb) -> {
+      java.util.List<jakarta.persistence.criteria.Predicate> predicates = new java.util.ArrayList<>();
+
+      if (date != null) {
+        predicates.add(cb.equal(root.get("date"), date));
+      }
+
+      if (stablishmentId != null) {
+        predicates.add(cb.equal(root.get("stablishment").get("id"), stablishmentId));
+      }
+
+      if (doctorId != null) {
+        predicates.add(cb.equal(root.get("doctor").get("uuid"), doctorId));
+      }
+
+      if (doctorName != null && !doctorName.trim().isEmpty()) {
+        String pattern = "%" + doctorName.trim().toLowerCase() + "%";
+        jakarta.persistence.criteria.Join<Schedule, Doctor> doctorJoin = root.join("doctor", jakarta.persistence.criteria.JoinType.LEFT);
+        jakarta.persistence.criteria.Expression<String> fullName = cb.concat(cb.concat(cb.lower(doctorJoin.get("firstName")), " "), cb.lower(doctorJoin.get("lastName")));
+        predicates.add(cb.or(
+            cb.like(cb.lower(doctorJoin.get("firstName")), pattern),
+            cb.like(cb.lower(doctorJoin.get("lastName")), pattern),
+            cb.like(fullName, pattern)
+        ));
+      }
+
+      return cb.and(predicates.toArray(new jakarta.persistence.criteria.Predicate[0]));
+    };
+
+    return scheduleRepository.findAll(spec, pageable).map(this::mapToDTO);
+  }
+
   public Page<ScheduleDTO> getAll(Pageable pageable) {
-    return scheduleRepository.findAll(pageable)
-        .map(this::mapToDTO);
+    return getAll(null, null, null, null, pageable);
   }
 
   public ScheduleDTO getById(Long id) {
@@ -195,6 +244,9 @@ public class ScheduleService {
     }
 
     java.util.List<Schedule> saved = scheduleRepository.saveAll(generated);
-    return saved.stream().map(this::mapToDTO).toList();
+    return saved.stream()
+        .sorted(java.util.Comparator.comparing(Schedule::getDate).thenComparing(Schedule::getHour))
+        .map(this::mapToDTO)
+        .toList();
   }
 }

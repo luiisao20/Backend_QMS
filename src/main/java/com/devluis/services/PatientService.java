@@ -140,8 +140,17 @@ public class PatientService implements UserDetailsService {
     return mapToDTO(patient);
   }
 
-  public org.springframework.data.domain.Page<PatientDTO> getAll(org.springframework.data.domain.Pageable pageable) {
+  public org.springframework.data.domain.Page<PatientDTO> getAll(String name, String ci, org.springframework.data.domain.Pageable pageable) {
+    if ((name != null && !name.trim().isEmpty()) || (ci != null && !ci.trim().isEmpty())) {
+      String cleanName = (name != null && !name.trim().isEmpty()) ? name.trim() : null;
+      String cleanCi = (ci != null && !ci.trim().isEmpty()) ? ci.trim() : null;
+      return patientRepository.findByFilters(cleanName, cleanCi, pageable).map(this::mapToDTO);
+    }
     return patientRepository.findAll(pageable).map(this::mapToDTO);
+  }
+
+  public org.springframework.data.domain.Page<PatientDTO> getAll(org.springframework.data.domain.Pageable pageable) {
+    return getAll(null, null, pageable);
   }
 
   public void updatePassword(UUID id, String newPassword) {

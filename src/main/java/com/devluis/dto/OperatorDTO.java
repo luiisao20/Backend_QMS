@@ -3,6 +3,7 @@ package com.devluis.dto;
 import java.util.UUID;
 
 import com.devluis.types.Role;
+import com.fasterxml.jackson.annotation.JsonInclude;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -17,6 +18,7 @@ import jakarta.validation.constraints.NotNull;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
+@JsonInclude(JsonInclude.Include.NON_NULL)
 public class OperatorDTO {
     private UUID uuid;
 
@@ -34,4 +36,6 @@ public class OperatorDTO {
 
     @NotNull(message = "El rol es requerido")
     private Role role;
+
+    private StablishmentDTO stablishment;
 }

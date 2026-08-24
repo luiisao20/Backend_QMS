@@ -30,8 +30,12 @@ public class ScheduleController {
 
   @GetMapping
   public Page<ScheduleDTO> getAll(
-      @PageableDefault(size = 10) Pageable pageable) {
-    return scheduleService.getAll(pageable);
+      @RequestParam(required = false) @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) java.time.LocalDate date,
+      @RequestParam(required = false) Long stablishmentId,
+      @RequestParam(required = false) java.util.UUID doctorId,
+      @RequestParam(required = false) String doctorName,
+      @PageableDefault(size = 10, sort = {"date", "hour"}, direction = org.springframework.data.domain.Sort.Direction.ASC) Pageable pageable) {
+    return scheduleService.getAll(date, stablishmentId, doctorId, doctorName, pageable);
   }
 
   @GetMapping("/{id}")

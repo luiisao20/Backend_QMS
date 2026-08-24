@@ -48,10 +48,21 @@ public class TurnController {
       @RequestParam(required = false) @DateTimeFormat(iso = ISO.DATE) LocalDate to,
       @PageableDefault(size = 10) Pageable pageable,
       Authentication auth) {
-    
+
     UUID patientUuid = UUID.fromString(auth.getName());
     Page<TurnDTO> myTurns = turnService.getTurnsForPatient(patientUuid, status, from, to, pageable);
     return ResponseEntity.ok(myTurns);
+  }
+
+  @GetMapping("/patient/{patientId}")
+  public ResponseEntity<Page<TurnDTO>> getTurnsByPatient(
+      @PathVariable UUID patientId,
+      @RequestParam(required = false) com.devluis.types.TurnStatus status,
+      @RequestParam(required = false) @DateTimeFormat(iso = ISO.DATE) LocalDate from,
+      @RequestParam(required = false) @DateTimeFormat(iso = ISO.DATE) LocalDate to,
+      @PageableDefault(size = 10) Pageable pageable) {
+    Page<TurnDTO> patientTurns = turnService.getTurnsForPatient(patientId, status, from, to, pageable);
+    return ResponseEntity.ok(patientTurns);
   }
 
   @GetMapping("/{id}")

@@ -138,12 +138,22 @@ public class OperatorService implements UserDetailsService {
   }
 
   private OperatorDTO mapToDTO(Operator operator) {
+    com.devluis.dto.StablishmentDTO estDTO = null;
+    if (operator.getStablishment() != null) {
+      estDTO = com.devluis.dto.StablishmentDTO.builder()
+          .id(operator.getStablishment().getId())
+          .name(operator.getStablishment().getName())
+          .address(operator.getStablishment().getAddress())
+          .build();
+    }
+
     return OperatorDTO.builder()
         .uuid(operator.getUuid())
         .email(operator.getEmail())
         .firstName(operator.getFirstName())
         .lastName(operator.getLastName())
         .role(operator.getRole())
+        .stablishment(estDTO)
         .build();
   }
 }

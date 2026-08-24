@@ -44,8 +44,10 @@ public class DoctorController {
 
   @GetMapping
   public Page<DoctorDTO> getAll(
+      @RequestParam(required = false) String name,
+      @RequestParam(required = false) String ci,
       @PageableDefault(size = 10) Pageable pageable) {
-    return doctorService.getAll(pageable);
+    return doctorService.getAll(name, ci, pageable);
   }
 
   @GetMapping("/{id}")

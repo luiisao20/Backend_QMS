@@ -11,6 +11,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.devluis.dto.PatientDTO;
@@ -29,8 +30,11 @@ public class PatientController {
   private final PatientService patientService;
 
   @GetMapping
-  public ResponseEntity<Page<PatientDTO>> getAllPatients(Pageable pageable) {
-    Page<PatientDTO> patients = patientService.getAll(pageable);
+  public ResponseEntity<Page<PatientDTO>> getAllPatients(
+      @RequestParam(required = false) String name,
+      @RequestParam(required = false) String ci,
+      Pageable pageable) {
+    Page<PatientDTO> patients = patientService.getAll(name, ci, pageable);
     return ResponseEntity.ok(patients);
   }
 
