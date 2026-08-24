@@ -7,14 +7,22 @@ import com.devluis.dto.StablishmentDTO;
 import com.devluis.entity.Doctor;
 import com.devluis.entity.Schedule;
 import com.devluis.entity.Servicio;
+import com.devluis.entity.Stablishment;
 import com.devluis.repository.DoctorRepository;
 import com.devluis.repository.ScheduleRepository;
 import com.devluis.repository.ServiceRepository;
+import com.devluis.repository.StablishmentRepository;
 import com.devluis.types.ScheduleStatus;
+
+import jakarta.persistence.criteria.Predicate;
 import lombok.Data;
 
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.domain.Sort.Order;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
@@ -29,6 +37,7 @@ public class ServicioService {
   private final ServiceRepository serviceRepository;
   private final DoctorRepository doctorRepository;
   private final ScheduleRepository scheduleRepository;
+  private final StablishmentRepository stablishmentRepository;
 
   public ServicioDTO create(ServicioDTO dto) {
     Servicio servicio = mapToEntity(dto);
@@ -81,24 +90,23 @@ public class ServicioService {
         .map(this::mapDoctorToDTO);
   }
 
-  public Page<ScheduleDTO> getSchedulesByService(Long serviceId, Long stablishmentId, LocalDate date, ScheduleStatus status, Pageable pageable) {
+  public Page<ScheduleDTO> getSchedulesByService(Long serviceId, Long stablishmentId, LocalDate date,
+      ScheduleStatus status, Pageable pageable) {
     if (!serviceRepository.existsById(serviceId)) {
       throw new RuntimeException("Servicio no encontrado");
     }
 
     if (pageable.getSort().isUnsorted()) {
-      pageable = org.springframework.data.domain.PageRequest.of(
+      pageable = PageRequest.of(
           pageable.getPageNumber(),
           pageable.getPageSize(),
-          org.springframework.data.domain.Sort.by(
-              org.springframework.data.domain.Sort.Order.asc("date"),
-              org.springframework.data.domain.Sort.Order.asc("hour")
-          )
-      );
+          Sort.by(
+              Order.asc("date"),
+              Order.asc("hour")));
     }
 
-    org.springframework.data.jpa.domain.Specification<Schedule> spec = (root, query, cb) -> {
-      java.util.List<jakarta.persistence.criteria.Predicate> predicates = new java.util.ArrayList<>();
+    Specification<Schedule> spec = (root, query, cb) -> {
+      List<Predicate> predicates = new java.util.ArrayList<>();
 
       predicates.add(cb.equal(root.get("service").get("id"), serviceId));
 
@@ -120,11 +128,28 @@ public class ServicioService {
     return scheduleRepository.findAll(spec, pageable).map(this::mapScheduleToDTO);
   }
 
+  public Page<StablishmentDTO> getStablishmentsByService(Long serviceId, String name, Pageable pageable) {
+    if (!serviceRepository.existsById(serviceId)) {
+      throw new RuntimeException("Servicio no encontrado");
+    }
+    String cleanName = (name != null && !name.trim().isEmpty()) ? name.trim() : null;
+    return stablishmentRepository.findByServiceIdAndName(serviceId, cleanName, pageable)
+        .map(this::mapStablishmentToDTO);
+  }
+
   public void delete(Long id) {
     if (!serviceRepository.existsById(id)) {
       throw new RuntimeException("Servicio no encontrado");
     }
     serviceRepository.deleteById(id);
+  }
+
+  private StablishmentDTO mapStablishmentToDTO(Stablishment stablishment) {
+    return StablishmentDTO.builder()
+        .id(stablishment.getId())
+        .name(stablishment.getName())
+        .address(stablishment.getAddress())
+        .build();
   }
 
   private DoctorDTO mapDoctorToDTO(Doctor doctor) {

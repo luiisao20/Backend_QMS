@@ -84,6 +84,10 @@ public class PatientService implements UserDetailsService {
       throw new RuntimeException("Email ya registrado");
     }
 
+    if (patientRepository.findByCi(patientDTO.getCi()).isPresent()) {
+      throw new RuntimeException("Cédula ya registrada");
+    }
+
     Patient patient = mapToEntity(patientDTO);
     patient.setEmail(patientDTO.getEmail().toLowerCase());
     patient.setPassword(passwordEncoder.encode(patientDTO.getPassword()));

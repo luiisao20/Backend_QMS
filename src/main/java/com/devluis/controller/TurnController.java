@@ -16,6 +16,7 @@ import org.springframework.web.bind.annotation.*;
 
 import com.devluis.dto.TurnDTO;
 import com.devluis.services.TurnService;
+import com.devluis.types.TurnStatus;
 
 import lombok.Data;
 
@@ -37,13 +38,19 @@ public class TurnController {
   }
 
   @GetMapping
-  public Page<TurnDTO> getAll(@PageableDefault(size = 10) Pageable pageable) {
-    return turnService.getAll(pageable);
+  public Page<TurnDTO> getAll(
+      @RequestParam(required = false) Long stablishmentId,
+      @RequestParam(required = false) UUID doctorId,
+      @RequestParam(required = false) Long serviceId,
+      @RequestParam(required = false) @DateTimeFormat(iso = ISO.DATE) LocalDate date,
+      @RequestParam(required = false) TurnStatus status,
+      @PageableDefault(size = 10) Pageable pageable) {
+    return turnService.getAll(stablishmentId, doctorId, serviceId, date, status, pageable);
   }
 
   @GetMapping("/me")
   public ResponseEntity<Page<TurnDTO>> getMyTurns(
-      @RequestParam(required = false) com.devluis.types.TurnStatus status,
+      @RequestParam(required = false) TurnStatus status,
       @RequestParam(required = false) @DateTimeFormat(iso = ISO.DATE) LocalDate from,
       @RequestParam(required = false) @DateTimeFormat(iso = ISO.DATE) LocalDate to,
       @PageableDefault(size = 10) Pageable pageable,
@@ -90,6 +97,31 @@ public class TurnController {
       if (e.getMessage().contains("permisos")) {
         return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of("error", e.getMessage()));
       }
+      return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("error", e.getMessage()));
+    }
+  }
+
+  @PutMapping("/{id}/reassign")
+  public ResponseEntity<?> reassignTurn(
+      @PathVariable Long id,
+      @jakarta.validation.Valid @RequestBody com.devluis.types.ReassignTurnBody body,
+      Authentication auth) {
+    try {
+      return ResponseEntity.ok(turnService.reassignTurn(id, body.getScheduleId(), auth.getName()));
+    } catch (RuntimeException e) {
+      return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("error", e.getMessage()));
+    }
+  }
+
+  @PutMapping("/{id}/staff-cancel")
+  public ResponseEntity<?> cancelTurnByStaff(
+      @PathVariable Long id,
+      @RequestBody(required = false) com.devluis.types.CancelTurnBody body,
+      Authentication auth) {
+    try {
+      String reason = body != null ? body.getReason() : null;
+      return ResponseEntity.ok(turnService.cancelTurnByStaff(id, auth.getName(), reason));
+    } catch (RuntimeException e) {
       return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("error", e.getMessage()));
     }
   }

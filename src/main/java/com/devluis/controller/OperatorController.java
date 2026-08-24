@@ -2,6 +2,7 @@ package com.devluis.controller;
 
 import com.devluis.dto.OperatorDTO;
 import com.devluis.services.OperatorService;
+import com.devluis.types.ChangePasswordBody;
 import com.devluis.services.MailService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -11,6 +12,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.UUID;
@@ -68,8 +70,8 @@ public class OperatorController {
 
   @PutMapping("/change-password")
   public ResponseEntity<?> changeMyPassword(
-      @Valid @RequestBody com.devluis.types.ChangePasswordBody body,
-      org.springframework.security.core.Authentication auth) {
+      @Valid @RequestBody ChangePasswordBody body,
+      Authentication auth) {
     try {
       if (!body.getPassword().equals(body.getRepeatedPassword())) {
         return com.devluis.utils.Helper.getResponseMessage("Las contraseñas no coinciden", HttpStatus.BAD_REQUEST);

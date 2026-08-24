@@ -34,11 +34,25 @@ public class ScheduleService {
     com.devluis.entity.Stablishment stablishment = stablishmentRepository.findById(dto.getStablishment().getId())
         .orElseThrow(() -> new RuntimeException("Establecimiento no encontrado"));
 
-    if (doctor.getServices() == null || !doctor.getServices().contains(servicio)) {
+    boolean serviceInStablishment = stablishment.getServices() != null &&
+        stablishment.getServices().stream().anyMatch(s -> s.getId().equals(servicio.getId()));
+    if (!serviceInStablishment) {
+        throw new RuntimeException("El servicio seleccionado no está disponible en este establecimiento");
+    }
+
+    if (doctor.getServices() == null || !doctor.getServices().stream().anyMatch(s -> s.getId().equals(servicio.getId()))) {
         throw new RuntimeException("El doctor seleccionado no tiene asignado este servicio");
     }
-    if (doctor.getStablishments() == null || !doctor.getStablishments().contains(stablishment)) {
+    if (doctor.getStablishments() == null || !doctor.getStablishments().stream().anyMatch(st -> st.getId().equals(stablishment.getId()))) {
         throw new RuntimeException("El doctor seleccionado no está asignado a este establecimiento");
+    }
+
+    if (scheduleRepository.existsByDoctorUuidAndDateAndHour(doctor.getUuid(), dto.getDate(), dto.getHour())) {
+        throw new RuntimeException("El doctor ya tiene un horario asignado para la fecha " + dto.getDate() + " a las " + dto.getHour());
+    }
+
+    if (scheduleRepository.existsByServiceIdAndStablishmentIdAndDoctorUuidAndDateAndHour(servicio.getId(), stablishment.getId(), doctor.getUuid(), dto.getDate(), dto.getHour())) {
+        throw new RuntimeException("Ya existe un horario registrado para este servicio y establecimiento en la fecha " + dto.getDate() + " a las " + dto.getHour());
     }
 
     Schedule schedule = Schedule.builder()
@@ -142,6 +156,20 @@ public class ScheduleService {
       schedule.setStablishment(stablishment);
     }
 
+    if (schedule.getStablishment() != null && schedule.getService() != null) {
+      boolean serviceInStablishment = schedule.getStablishment().getServices() != null &&
+          schedule.getStablishment().getServices().stream().anyMatch(s -> s.getId().equals(schedule.getService().getId()));
+      if (!serviceInStablishment) {
+        throw new RuntimeException("El servicio seleccionado no está disponible en este establecimiento");
+      }
+    }
+
+    if (schedule.getDoctor() != null) {
+      if (scheduleRepository.existsByDoctorUuidAndDateAndHourAndIdNot(schedule.getDoctor().getUuid(), schedule.getDate(), schedule.getHour(), schedule.getId())) {
+        throw new RuntimeException("El doctor ya tiene otro horario asignado para la fecha " + schedule.getDate() + " a las " + schedule.getHour());
+      }
+    }
+
     Schedule updated = scheduleRepository.save(schedule);
     return mapToDTO(updated);
   }
@@ -202,15 +230,21 @@ public class ScheduleService {
     com.devluis.entity.Stablishment stablishment = stablishmentRepository.findById(body.getStablishmentId())
         .orElseThrow(() -> new RuntimeException("Establecimiento no encontrado"));
 
+    boolean serviceInStablishment = stablishment.getServices() != null &&
+        stablishment.getServices().stream().anyMatch(s -> s.getId().equals(servicio.getId()));
+    if (!serviceInStablishment) {
+        throw new RuntimeException("El servicio seleccionado no está disponible en este establecimiento");
+    }
+
     Doctor doctor = null;
     if (body.getDoctorId() != null) {
       doctor = doctorRepository.findById(body.getDoctorId())
           .orElseThrow(() -> new RuntimeException("Doctor no encontrado"));
 
-      if (doctor.getServices() == null || !doctor.getServices().contains(servicio)) {
+      if (doctor.getServices() == null || !doctor.getServices().stream().anyMatch(s -> s.getId().equals(servicio.getId()))) {
           throw new RuntimeException("El doctor seleccionado no tiene asignado este servicio");
       }
-      if (doctor.getStablishments() == null || !doctor.getStablishments().contains(stablishment)) {
+      if (doctor.getStablishments() == null || !doctor.getStablishments().stream().anyMatch(st -> st.getId().equals(stablishment.getId()))) {
           throw new RuntimeException("El doctor seleccionado no está asignado a este establecimiento");
       }
     }
@@ -230,17 +264,30 @@ public class ScheduleService {
         continue;
       }
 
-      Schedule schedule = Schedule.builder()
-          .date(body.getDate())
-          .hour(current)
-          .doctor(doctor)
-          .service(servicio)
-          .stablishment(stablishment)
-          .status(com.devluis.types.ScheduleStatus.STATUS_FREE)
-          .build();
-      generated.add(schedule);
+      boolean alreadyExists = false;
+      if (doctor != null) {
+        alreadyExists = scheduleRepository.existsByDoctorUuidAndDateAndHour(doctor.getUuid(), body.getDate(), current);
+      } else {
+        alreadyExists = scheduleRepository.existsByServiceIdAndStablishmentIdAndDateAndHour(servicio.getId(), stablishment.getId(), body.getDate(), current);
+      }
+
+      if (!alreadyExists) {
+        Schedule schedule = Schedule.builder()
+            .date(body.getDate())
+            .hour(current)
+            .doctor(doctor)
+            .service(servicio)
+            .stablishment(stablishment)
+            .status(com.devluis.types.ScheduleStatus.STATUS_FREE)
+            .build();
+        generated.add(schedule);
+      }
 
       current = slotEnd;
+    }
+
+    if (generated.isEmpty()) {
+      throw new RuntimeException("Ya existen horarios creados para todos los bloques de esta fecha");
     }
 
     java.util.List<Schedule> saved = scheduleRepository.saveAll(generated);

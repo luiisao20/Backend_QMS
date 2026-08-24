@@ -130,39 +130,78 @@ public class AuthService {
       HttpServletRequest req,
       HttpServletResponse res,
       InitRegistrationBody body) {
-    if (patientService.findByCi(body.getCi()).isPresent()) {
-      return AuthResult.error("El usuario ya se encuentra registrado con esta cédula", HttpStatus.BAD_REQUEST);
+    if (patientRepository.findByCi(body.getCi()).isPresent()) {
+      return AuthResult.error("Ya existe un paciente registrado con esta cédula", HttpStatus.BAD_REQUEST);
     }
 
-    if (patientService.findByEmail(body.getEmail()).isPresent()) {
-      return AuthResult.error("El usuario ya se encuentra registrado con este correo", HttpStatus.BAD_REQUEST);
+    if (patientRepository.findByEmail(body.getEmail()).isPresent() ||
+        doctorRepository.findByEmail(body.getEmail()).isPresent() ||
+        operatorRepository.findByEmail(body.getEmail()).isPresent()) {
+      return AuthResult.error("Ya existe un usuario registrado con este correo electrónico", HttpStatus.BAD_REQUEST);
     }
 
+    String email = body.getEmail().trim().toLowerCase();
     String otp = otpService.generateOtp();
+    otpService.saveOtp(email, otp);
 
-    Authentication auth = new UsernamePasswordAuthenticationToken(body.getEmail(), null,
+    Authentication auth = new UsernamePasswordAuthenticationToken(email, null,
         List.of(new SimpleGrantedAuthority("ROLE_OTP_PENDING")));
     String jwt = JwtProvider.generateFlashToken(auth);
     SecurityContextHolder.getContext().setAuthentication(auth);
 
-    mailService.sendTestEmail(body.getEmail(), "Completa tu registro",
-        "Se ha generado un código OTP " + otp + " por favor ingrésalo en la plataforma para completar tu registro");
+    mailService.sendTestEmail(email, "Completa tu registro - Código OTP",
+        "Se ha generado tu código de verificación OTP: " + otp + ".\nPor favor ingrésalo en la plataforma para continuar con tu registro.");
 
     return AuthResult.ok(InitRegistrationResult.builder().jwtToken(jwt).build());
   }
 
-  public AuthResult<RegistrationResult> completeRegistration(String emailAuth, PatientDTO patient) {
-    if (!emailAuth.equals(patient.getEmail())) {
-      return AuthResult.error("El email no pertenece al usuario autenticado", HttpStatus.BAD_REQUEST);
+  public AuthResult<String> verifyRegistrationOtp(String email, String inputOtp) {
+    if (email == null || email.isBlank()) {
+      return AuthResult.error("No hay una sesión de verificación activa", HttpStatus.UNAUTHORIZED);
     }
+
+    if (otpService.isBlocked(email)) {
+      return AuthResult.error("Has superado el límite de intentos permitidos", HttpStatus.BAD_REQUEST);
+    }
+
+    if (!otpService.validate(email, inputOtp)) {
+      return AuthResult.error("Código OTP incorrecto o expirado", HttpStatus.BAD_REQUEST);
+    }
+
+    otpService.deleteOtp(email);
+
+    Authentication auth = new UsernamePasswordAuthenticationToken(email, null,
+        List.of(new SimpleGrantedAuthority("ROLE_PENDING_REGISTRATION")));
+    String jwt = JwtProvider.generateFlashToken(auth);
+    SecurityContextHolder.getContext().setAuthentication(auth);
+
+    return AuthResult.ok(jwt);
+  }
+
+  public AuthResult<RegistrationResult> completeRegistration(String emailAuth, PatientDTO patient) {
+    if (emailAuth == null || patient.getEmail() == null || !emailAuth.equalsIgnoreCase(patient.getEmail().trim())) {
+      return AuthResult.error("El correo del formulario no coincide con el correo verificado en la sesión", HttpStatus.BAD_REQUEST);
+    }
+
+    if (patientRepository.findByCi(patient.getCi()).isPresent()) {
+      return AuthResult.error("Ya existe un paciente registrado con esta cédula", HttpStatus.BAD_REQUEST);
+    }
+
+    if (patientRepository.findByEmail(emailAuth).isPresent()) {
+      return AuthResult.error("Ya existe un paciente registrado con este correo electrónico", HttpStatus.BAD_REQUEST);
+    }
+
+    patient.setEmail(emailAuth);
     Patient patientRegistered = patientService.register(patient);
 
     Authentication auth = patientService.loginEmail(patientRegistered.getEmail(), patient.getPassword());
     String jwt = JwtProvider.generateToken(auth);
     SecurityContextHolder.getContext().setAuthentication(auth);
 
-    mailService.sendTestEmail(emailAuth, "Registro exitoso",
-        "Te has registrado exitosamente en la plataforma");
+    mailService.sendTestEmail(emailAuth, "Registro exitoso - QMS",
+        "Hola " + patientRegistered.getFirstName() + " " + patientRegistered.getLastName()
+            + ",\n\nTu registro en la plataforma QMS ha culminado con éxito.");
+
     return AuthResult.ok(RegistrationResult.builder()
         .authResponse(buildAuthResponse(patientRegistered, "Registro culminado con éxito"))
         .jwtToken(jwt).build());

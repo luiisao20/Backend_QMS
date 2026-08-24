@@ -5,8 +5,10 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.util.Map;
 
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -17,10 +19,13 @@ import com.devluis.services.OperatorService;
 import com.devluis.dto.PatientDTO;
 import com.devluis.dto.DoctorDTO;
 import com.devluis.dto.OperatorDTO;
+import com.devluis.types.ChangePasswordBody;
 import com.devluis.types.InitRegistrationBody;
 import com.devluis.types.LoginDoctorBody;
 import com.devluis.types.LoginOperatorBody;
 import com.devluis.types.LoginPatientBody;
+import com.devluis.types.RecoverPasswordInitBody;
+import com.devluis.types.VerifyOtpBody;
 import com.devluis.utils.Helper;
 
 import jakarta.servlet.http.HttpServletRequest;
@@ -106,8 +111,32 @@ public class AuthController {
 
     Helper.addJwtCookie(res, result.getData().getJwtToken(), 300);
 
-    return ResponseEntity.ok(Map.of("Message", "Código Otp enviado al correo"));
+    return ResponseEntity.ok(Map.of(
+        "Message", "Código OTP enviado al correo",
+        "email", body.getEmail()));
   }
+
+  @PostMapping("/verify-registration-otp")
+  public ResponseEntity<?> verifyRegistrationOtp(
+      @Valid @RequestBody VerifyOtpBody body,
+      HttpServletRequest req,
+      HttpServletResponse res,
+      Authentication auth) {
+    if (auth == null || auth.getName() == null) {
+      return Helper.getResponseMessage("Sesión de verificación inválida o inexistente", HttpStatus.UNAUTHORIZED);
+    }
+    String email = auth.getName();
+    var result = authService.verifyRegistrationOtp(email, body.getOtp());
+    if (!result.isSuccess()) {
+      return Helper.getResponseMessage(result.getMessage(), result.getStatus());
+    }
+
+    Helper.addJwtCookie(res, result.getData(), 600);
+
+    return ResponseEntity.ok(Map.of(
+        "Message", "Código OTP verificado correctamente",
+        "email", email));
+  } 
 
   @PostMapping("/register-patient")
   public ResponseEntity<?> registerPatient(
@@ -115,6 +144,10 @@ public class AuthController {
       HttpServletRequest req,
       HttpServletResponse res,
       Authentication auth) {
+    if (auth == null || auth.getName() == null) {
+      return Helper.getResponseMessage("No autorizado para completar el registro",
+          HttpStatus.UNAUTHORIZED);
+    }
     String emailAuth = auth.getName();
     var result = authService.completeRegistration(emailAuth, dto);
 
@@ -133,7 +166,7 @@ public class AuthController {
       DoctorDTO registered = doctorService.register(dto);
       return ResponseEntity.ok(registered);
     } catch (RuntimeException e) {
-      return Helper.getResponseMessage(e.getMessage(), org.springframework.http.HttpStatus.BAD_REQUEST);
+      return Helper.getResponseMessage(e.getMessage(), HttpStatus.BAD_REQUEST);
     }
   }
 
@@ -143,7 +176,7 @@ public class AuthController {
       OperatorDTO registered = operatorService.register(dto);
       return ResponseEntity.ok(registered);
     } catch (RuntimeException e) {
-      return Helper.getResponseMessage(e.getMessage(), org.springframework.http.HttpStatus.BAD_REQUEST);
+      return Helper.getResponseMessage(e.getMessage(), HttpStatus.BAD_REQUEST);
     }
   }
 
@@ -158,7 +191,7 @@ public class AuthController {
 
   @PostMapping("/recover-password/init")
   public ResponseEntity<?> initPasswordRecovery(
-      @Valid @RequestBody com.devluis.types.RecoverPasswordInitBody body,
+      @Valid @RequestBody RecoverPasswordInitBody body,
       HttpServletResponse res) {
     var result = authService.initPasswordRecovery(body.getEmail());
     if (!result.isSuccess()) {
@@ -171,7 +204,7 @@ public class AuthController {
 
   @PostMapping("/recover-password/verify-otp")
   public ResponseEntity<?> verifyRecoveryOtp(
-      @Valid @RequestBody com.devluis.types.VerifyOtpBody body,
+      @Valid @RequestBody VerifyOtpBody body,
       HttpServletRequest req,
       HttpServletResponse res,
       Authentication auth) {
@@ -187,7 +220,7 @@ public class AuthController {
 
   @PostMapping("/recover-password/change")
   public ResponseEntity<?> changePassword(
-      @Valid @RequestBody com.devluis.types.ChangePasswordBody body,
+      @Valid @RequestBody ChangePasswordBody body,
       HttpServletRequest req,
       HttpServletResponse res,
       Authentication auth) {
@@ -196,14 +229,17 @@ public class AuthController {
     if (!result.isSuccess()) {
       return Helper.getResponseMessage(result.getMessage(), result.getStatus());
     }
-    
+
     // Clear the cookie once the password is changed
-    jakarta.servlet.http.Cookie cookie = new jakarta.servlet.http.Cookie("jwt", null);
-    cookie.setPath("/");
-    cookie.setHttpOnly(true);
-    cookie.setMaxAge(0);
-    res.addCookie(cookie);
+    Helper.deleteJwtCookie(res);
 
     return ResponseEntity.ok(Map.of("Message", result.getData()));
+  }
+
+  @PostMapping("/logout")
+  public ResponseEntity<?> logout(HttpServletRequest req, HttpServletResponse res) {
+    SecurityContextHolder.clearContext();
+    Helper.deleteJwtCookie(res);
+    return ResponseEntity.ok(Map.of("message", "Sesión cerrada correctamente"));
   }
 }

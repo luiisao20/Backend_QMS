@@ -1,5 +1,6 @@
 package com.devluis.controller;
 
+import java.util.Map;
 import java.util.UUID;
 
 import org.springframework.data.domain.Page;
@@ -61,7 +62,7 @@ public class PatientController {
       }
       UUID uuid = UUID.fromString(auth.getName());
       patientService.updatePassword(uuid, body.getPassword());
-      return ResponseEntity.ok(java.util.Map.of("Message", "Contraseña actualizada exitosamente"));
+      return ResponseEntity.ok(Map.of("Message", "Contraseña actualizada exitosamente"));
     } catch (RuntimeException e) {
       return Helper.getResponseMessage(e.getMessage(), HttpStatus.BAD_REQUEST);
     }

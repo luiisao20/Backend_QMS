@@ -1,10 +1,13 @@
 package com.devluis.services;
 
 import java.time.LocalDate;
+import java.time.OffsetDateTime;
+import java.util.List;
 import java.util.UUID;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 
 import com.devluis.dto.DoctorDTO;
@@ -23,6 +26,9 @@ import com.devluis.repository.TurnRepository;
 import com.devluis.types.ScheduleStatus;
 import com.devluis.types.TurnStatus;
 
+import jakarta.persistence.criteria.Join;
+import jakarta.persistence.criteria.JoinType;
+import jakarta.persistence.criteria.Predicate;
 import lombok.Data;
 
 @Service
@@ -111,8 +117,47 @@ public class TurnService {
     return savedDTO;
   }
 
+  public Page<TurnDTO> getAll(
+      Long stablishmentId,
+      UUID doctorId,
+      Long serviceId,
+      LocalDate date,
+      TurnStatus status,
+      Pageable pageable) {
+
+    Specification<Turn> spec = (root, query, cb) -> {
+      List<Predicate> predicates = new java.util.ArrayList<>();
+
+      Join<Turn, Schedule> scheduleJoin = root.join("schedule", JoinType.LEFT);
+
+      if (stablishmentId != null) {
+        predicates.add(cb.equal(scheduleJoin.get("stablishment").get("id"), stablishmentId));
+      }
+
+      if (doctorId != null) {
+        predicates.add(cb.equal(scheduleJoin.get("doctor").get("uuid"), doctorId));
+      }
+
+      if (serviceId != null) {
+        predicates.add(cb.equal(scheduleJoin.get("service").get("id"), serviceId));
+      }
+
+      if (date != null) {
+        predicates.add(cb.equal(scheduleJoin.get("date"), date));
+      }
+
+      if (status != null) {
+        predicates.add(cb.equal(root.get("status"), status));
+      }
+
+      return cb.and(predicates.toArray(new Predicate[0]));
+    };
+
+    return turnRepository.findAll(spec, pageable).map(this::mapToDTO);
+  }
+
   public Page<TurnDTO> getAll(Pageable pageable) {
-    return turnRepository.findAll(pageable).map(this::mapToDTO);
+    return getAll(null, null, null, null, null, pageable);
   }
 
   public Page<TurnDTO> getTurnsForPatient(
@@ -122,8 +167,8 @@ public class TurnService {
       LocalDate toDate, 
       Pageable pageable) {
     
-    org.springframework.data.jpa.domain.Specification<Turn> spec = (root, query, cb) -> {
-      java.util.List<jakarta.persistence.criteria.Predicate> predicates = new java.util.ArrayList<>();
+    Specification<Turn> spec = (root, query, cb) -> {
+      List<Predicate> predicates = new java.util.ArrayList<>();
 
       predicates.add(cb.equal(root.get("patient").get("uuid"), patientUuid));
 
@@ -139,7 +184,7 @@ public class TurnService {
         predicates.add(cb.lessThanOrEqualTo(root.get("schedule").get("date"), toDate));
       }
 
-      return cb.and(predicates.toArray(new jakarta.persistence.criteria.Predicate[0]));
+      return cb.and(predicates.toArray(new Predicate[0]));
     };
 
     return turnRepository.findAll(spec, pageable).map(this::mapToDTO);
@@ -185,16 +230,125 @@ public class TurnService {
       throw new RuntimeException("Error de permisos: Este turno no te pertenece");
     }
 
-    if (turn.getStatus() == com.devluis.types.TurnStatus.TURN_TREATED ||
-        turn.getStatus() == com.devluis.types.TurnStatus.TURN_CANCELLED) {
+    if (turn.getStatus() == TurnStatus.TURN_TREATED ||
+        turn.getStatus() == TurnStatus.TURN_CANCELLED) {
       throw new RuntimeException("No puedes cancelar un turno que ya fue atendido o cancelado");
     }
 
-    turn.setStatus(com.devluis.types.TurnStatus.TURN_CANCELLED);
+    turn.setStatus(TurnStatus.TURN_CANCELLED);
+    turn.setCancelledAt(OffsetDateTime.now());
 
     Turn updated = turnRepository.save(turn);
     TurnDTO updatedDTO = mapToDTO(updated);
     broadcastTurnUpdate(updated, updatedDTO);
+    return updatedDTO;
+  }
+
+  public TurnDTO reassignTurn(Long turnId, Long newScheduleId, String staffAuthName) {
+    Turn turn = turnRepository.findById(turnId)
+        .orElseThrow(() -> new RuntimeException("Turno no encontrado"));
+
+    if (turn.getStatus() == TurnStatus.TURN_TREATED || turn.getStatus() == TurnStatus.TURN_CANCELLED) {
+      throw new RuntimeException("No se puede reasignar un turno que ya fue atendido o cancelado");
+    }
+
+    Schedule newSchedule = scheduleRepository.findById(newScheduleId)
+        .orElseThrow(() -> new RuntimeException("El nuevo horario no fue encontrado"));
+
+    if (!newSchedule.getStatus().equals(ScheduleStatus.STATUS_FREE)) {
+      throw new RuntimeException("El nuevo horario seleccionado no está disponible o se encuentra ocupado");
+    }
+
+    Schedule oldSchedule = turn.getSchedule();
+
+    Long currentTurnsCount = turnRepository.countTurnsByServiceAndDate(
+        newSchedule.getService().getId(),
+        newSchedule.getDate());
+    int nextOrder = (currentTurnsCount != null ? currentTurnsCount.intValue() : 0) + 1;
+
+    try {
+      operatorRepository.findById(UUID.fromString(staffAuthName)).ifPresent(turn::setOperator);
+    } catch (Exception e) {
+      // Ignorar si no es UUID de operador
+    }
+
+    turn.setSchedule(newSchedule);
+    turn.setOrder(nextOrder);
+    turn.setStatus(TurnStatus.TURN_PENDING);
+
+    Turn updated = turnRepository.save(turn);
+    TurnDTO updatedDTO = mapToDTO(updated);
+
+    if (oldSchedule != null) {
+      Turn oldDummy = Turn.builder()
+          .schedule(oldSchedule)
+          .build();
+      broadcastTurnUpdate(oldDummy, updatedDTO);
+    }
+
+    broadcastTurnUpdate(updated, updatedDTO);
+
+    if (turn.getPatient() != null) {
+      String serviceName = newSchedule.getService() != null ? newSchedule.getService().getName() : "N/A";
+      String date = newSchedule.getDate() != null ? newSchedule.getDate().toString() : "N/A";
+      String hour = newSchedule.getHour() != null ? newSchedule.getHour().toString() : "N/A";
+      String stablishmentName = newSchedule.getStablishment() != null ? newSchedule.getStablishment().getName() : "N/A";
+      String doctorFullName = newSchedule.getDoctor() != null
+          ? newSchedule.getDoctor().getFirstName() + " " + newSchedule.getDoctor().getLastName()
+          : "N/A";
+
+      mailService.sendTurnRescheduledEmail(
+          turn.getPatient().getEmail(),
+          turn.getPatient().getFirstName(),
+          turn.getPatient().getLastName(),
+          nextOrder,
+          serviceName,
+          date,
+          hour,
+          stablishmentName,
+          doctorFullName);
+    }
+
+    return updatedDTO;
+  }
+
+  public TurnDTO cancelTurnByStaff(Long turnId, String staffAuthName, String reason) {
+    Turn turn = turnRepository.findById(turnId)
+        .orElseThrow(() -> new RuntimeException("Turno no encontrado"));
+
+    if (turn.getStatus() == TurnStatus.TURN_TREATED || turn.getStatus() == TurnStatus.TURN_CANCELLED) {
+      throw new RuntimeException("No se puede cancelar un turno que ya fue atendido o cancelado");
+    }
+
+    try {
+      operatorRepository.findById(UUID.fromString(staffAuthName)).ifPresent(turn::setOperator);
+    } catch (Exception e) {
+      // Ignorar si no es UUID de operador
+    }
+
+    turn.setStatus(TurnStatus.TURN_CANCELLED);
+    turn.setCancelledAt(java.time.OffsetDateTime.now());
+
+    Turn updated = turnRepository.save(turn);
+    TurnDTO updatedDTO = mapToDTO(updated);
+    broadcastTurnUpdate(updated, updatedDTO);
+
+    if (turn.getPatient() != null && turn.getSchedule() != null) {
+      String serviceName = turn.getSchedule().getService() != null ? turn.getSchedule().getService().getName() : "N/A";
+      String date = turn.getSchedule().getDate() != null ? turn.getSchedule().getDate().toString() : "N/A";
+      String hour = turn.getSchedule().getHour() != null ? turn.getSchedule().getHour().toString() : "N/A";
+
+      mailService.sendTurnCancelledEmail(
+          turn.getPatient().getEmail(),
+          turn.getPatient().getFirstName(),
+          turn.getPatient().getLastName(),
+          turn.getOrder(),
+          serviceName,
+          date,
+          hour,
+          reason);
+    }
+
     return updatedDTO;
   }
 

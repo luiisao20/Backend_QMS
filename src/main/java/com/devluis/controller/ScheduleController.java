@@ -7,11 +7,16 @@ import com.devluis.types.GenerateSchedulesBody;
 import jakarta.validation.Valid;
 import lombok.Data;
 
+import java.time.LocalDate;
 import java.util.List;
+import java.util.UUID;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort.Direction;
 import org.springframework.data.web.PageableDefault;
+import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.format.annotation.DateTimeFormat.ISO;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -23,18 +28,18 @@ public class ScheduleController {
 
   private final ScheduleService scheduleService;
 
-  @PostMapping
+  @PostMapping({"", "/create"})
   public ResponseEntity<ScheduleDTO> create(@Valid @RequestBody ScheduleDTO dto) {
     return new ResponseEntity<>(scheduleService.create(dto), HttpStatus.CREATED);
   }
 
   @GetMapping
   public Page<ScheduleDTO> getAll(
-      @RequestParam(required = false) @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) java.time.LocalDate date,
+      @RequestParam(required = false) @DateTimeFormat(iso = ISO.DATE) LocalDate date,
       @RequestParam(required = false) Long stablishmentId,
-      @RequestParam(required = false) java.util.UUID doctorId,
+      @RequestParam(required = false) UUID doctorId,
       @RequestParam(required = false) String doctorName,
-      @PageableDefault(size = 10, sort = {"date", "hour"}, direction = org.springframework.data.domain.Sort.Direction.ASC) Pageable pageable) {
+      @PageableDefault(size = 10, sort = {"date", "hour"}, direction = Direction.ASC) Pageable pageable) {
     return scheduleService.getAll(date, stablishmentId, doctorId, doctorName, pageable);
   }
 

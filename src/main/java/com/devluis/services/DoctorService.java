@@ -1,6 +1,8 @@
 package com.devluis.services;
 
 import com.devluis.dto.DoctorDTO;
+import com.devluis.dto.ServicioDTO;
+import com.devluis.dto.StablishmentDTO;
 import com.devluis.entity.Doctor;
 import com.devluis.repository.DoctorRepository;
 import com.devluis.types.Role;
@@ -209,10 +211,10 @@ public class DoctorService implements UserDetailsService {
         .gender(doctor.getGender())
         .ci(doctor.getCi())
         .stablishments(doctor.getStablishments() != null ? doctor.getStablishments().stream()
-            .map(s -> com.devluis.dto.StablishmentDTO.builder().id(s.getId()).name(s.getName()).address(s.getAddress()).build())
+            .map(s -> StablishmentDTO.builder().id(s.getId()).name(s.getName()).address(s.getAddress()).build())
             .toList() : null)
         .services(doctor.getServices() != null ? doctor.getServices().stream()
-            .map(s -> com.devluis.dto.ServicioDTO.builder().id(s.getId()).name(s.getName()).price(s.getPrice()).discount(s.getDiscount()).build())
+            .map(s -> ServicioDTO.builder().id(s.getId()).name(s.getName()).price(s.getPrice()).discount(s.getDiscount()).build())
             .toList() : null)
         .build();
   }

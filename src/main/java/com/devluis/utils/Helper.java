@@ -25,4 +25,13 @@ public class Helper {
   public static void addJwtCookie(HttpServletResponse res, String jwt, long maxAge) {
     res.addHeader(HttpHeaders.SET_COOKIE, CookiesUtils.createJwtCookie(jwt, maxAge).toString());
   }
+
+  /**
+   * Elimina la cookie JWT del cliente
+   * 
+   * @param res Response
+   */
+  public static void deleteJwtCookie(HttpServletResponse res) {
+    res.addHeader(HttpHeaders.SET_COOKIE, CookiesUtils.deleteJwtCookie().toString());
+  }
 }

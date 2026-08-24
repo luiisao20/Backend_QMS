@@ -3,6 +3,7 @@ package com.devluis.controller;
 import com.devluis.dto.DoctorDTO;
 import com.devluis.dto.ScheduleDTO;
 import com.devluis.dto.ServicioDTO;
+import com.devluis.dto.StablishmentDTO;
 import com.devluis.services.ServicioService;
 import com.devluis.types.ScheduleStatus;
 import jakarta.validation.Valid;
@@ -10,6 +11,7 @@ import lombok.Data;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort.Direction;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
@@ -62,13 +64,21 @@ public class ServicioController {
     return ResponseEntity.ok(servicioService.getDoctorsByService(id, name, pageable));
   }
 
+  @GetMapping("/{id}/stablishments")
+  public ResponseEntity<Page<StablishmentDTO>> getStablishmentsByService(
+      @PathVariable Long id,
+      @RequestParam(required = false) String name,
+      @PageableDefault(size = 10) Pageable pageable) {
+    return ResponseEntity.ok(servicioService.getStablishmentsByService(id, name, pageable));
+  }
+
   @GetMapping("/{id}/schedules")
   public ResponseEntity<Page<ScheduleDTO>> getSchedulesByService(
       @PathVariable Long id,
       @RequestParam(required = false) Long stablishmentId,
       @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
       @RequestParam(required = false) ScheduleStatus status,
-      @PageableDefault(size = 10, sort = {"date", "hour"}, direction = org.springframework.data.domain.Sort.Direction.ASC) Pageable pageable) {
+      @PageableDefault(size = 10, sort = {"date", "hour"}, direction = Direction.ASC) Pageable pageable) {
     return ResponseEntity.ok(servicioService.getSchedulesByService(id, stablishmentId, date, status, pageable));
   }
 
