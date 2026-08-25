@@ -25,6 +25,7 @@ public class OperatorService implements UserDetailsService {
   private final OperatorRepository operatorRepository;
   private final PasswordEncoder passwordEncoder;
   private final com.devluis.repository.StablishmentRepository stablishmentRepository;
+  private final com.devluis.repository.TurnRepository turnRepository;
 
   public Authentication loginEmail(String email, String password) {
     try {
@@ -96,6 +97,13 @@ public class OperatorService implements UserDetailsService {
   public void deleteOperator(UUID id) {
     if (!operatorRepository.existsById(id)) {
       throw new RuntimeException("Operador no encontrado");
+    }
+
+    // A Turn must never be destroyed as a side effect of removing the operator
+    // who attended it. Same guard as StablishmentService.delete.
+    if (turnRepository.existsByOperatorUuid(id)) {
+      throw new RuntimeException(
+          "No se puede eliminar el operador porque tiene turnos atendidos asociados. Reasigne los turnos antes de eliminarlo.");
     }
     operatorRepository.deleteById(id);
   }

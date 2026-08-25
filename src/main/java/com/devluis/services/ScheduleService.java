@@ -23,6 +23,7 @@ public class ScheduleService {
   private final DoctorRepository doctorRepository;
   private final ServiceRepository serviceRepository;
   private final com.devluis.repository.StablishmentRepository stablishmentRepository;
+  private final com.devluis.repository.TurnRepository turnRepository;
 
   public ScheduleDTO create(ScheduleDTO dto) {
     Doctor doctor = doctorRepository.findById(dto.getDoctor().getUuid())
@@ -68,12 +69,16 @@ public class ScheduleService {
   }
 
   public Page<ScheduleDTO> getAll(
-      java.time.LocalDate date, 
-      Long stablishmentId, 
-      java.util.UUID doctorId, 
-      String doctorName, 
+      java.time.LocalDate date,
+      Long stablishmentId,
+      java.util.UUID doctorId,
+      String doctorName,
+      Long serviceId,
+      java.time.LocalDate from,
+      java.time.LocalDate to,
+      com.devluis.types.ScheduleStatus status,
       Pageable pageable) {
-    
+
     if (pageable.getSort().isUnsorted()) {
       pageable = org.springframework.data.domain.PageRequest.of(
           pageable.getPageNumber(),
@@ -84,12 +89,27 @@ public class ScheduleService {
           )
       );
     }
-    
+
     org.springframework.data.jpa.domain.Specification<Schedule> spec = (root, query, cb) -> {
       java.util.List<jakarta.persistence.criteria.Predicate> predicates = new java.util.ArrayList<>();
 
+      // `date` (exact day, used by the admin screens) and `from`/`to` (a
+      // range, used by the Flutter booking flow) are independent, additive
+      // (AND) filters, exactly like every other filter below. No client
+      // sends both today, but if one ever did, the result would be the
+      // intersection of "exactly this day" AND "inside this range" — a
+      // stricter, possibly empty, filter rather than an error or a
+      // last-one-wins override.
       if (date != null) {
         predicates.add(cb.equal(root.get("date"), date));
+      }
+
+      if (from != null) {
+        predicates.add(cb.greaterThanOrEqualTo(root.get("date"), from));
+      }
+
+      if (to != null) {
+        predicates.add(cb.lessThanOrEqualTo(root.get("date"), to));
       }
 
       if (stablishmentId != null) {
@@ -111,6 +131,14 @@ public class ScheduleService {
         ));
       }
 
+      if (serviceId != null) {
+        predicates.add(cb.equal(root.get("service").get("id"), serviceId));
+      }
+
+      if (status != null) {
+        predicates.add(cb.equal(root.get("status"), status));
+      }
+
       return cb.and(predicates.toArray(new jakarta.persistence.criteria.Predicate[0]));
     };
 
@@ -118,7 +146,7 @@ public class ScheduleService {
   }
 
   public Page<ScheduleDTO> getAll(Pageable pageable) {
-    return getAll(null, null, null, null, pageable);
+    return getAll(null, null, null, null, null, null, null, null, pageable);
   }
 
   public ScheduleDTO getById(Long id) {
@@ -177,6 +205,10 @@ public class ScheduleService {
   public void delete(Long id) {
     if (!scheduleRepository.existsById(id)) {
       throw new RuntimeException("Horario no encontrado");
+    }
+    if (turnRepository.existsByScheduleId(id)) {
+      throw new RuntimeException(
+          "No se puede eliminar el horario porque tiene turnos reservados. Cancele o reasigne los turnos antes de eliminarlo.");
     }
     scheduleRepository.deleteById(id);
   }

@@ -52,6 +52,10 @@ public class Schedule {
   @Column(columnDefinition = "timestamptz")
   private OffsetDateTime createdAt;
 
-  @OneToMany(mappedBy = "schedule", cascade = CascadeType.ALL)
+  // No cascade: a Turn is never disposable. Deleting a Schedule must NOT
+  // silently destroy booked turns. ScheduleService.delete (and the cascading
+  // deletes from Stablishment/Servicio/Doctor) verify there are no turns left
+  // via TurnRepository.existsByScheduleId/... BEFORE removing the schedule.
+  @OneToMany(mappedBy = "schedule")
   private List<Turn> turns;
 }

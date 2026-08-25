@@ -18,6 +18,7 @@ public class StablishmentService {
   private final com.devluis.repository.ServiceRepository serviceRepository;
   private final com.devluis.repository.DoctorRepository doctorRepository;
   private final com.devluis.repository.OperatorRepository operatorRepository;
+  private final com.devluis.repository.TurnRepository turnRepository;
 
   public StablishmentDTO create(StablishmentDTO dto) {
     Stablishment stablishment = mapToEntity(dto);
@@ -105,6 +106,14 @@ public class StablishmentService {
   public void delete(Long id) {
     if (!stablishmentRepository.existsById(id)) {
       throw new RuntimeException("Establecimiento no encontrado");
+    }
+    // A Schedule with no turns is disposable and gets cascade-removed with the
+    // establishment (see Stablishment.schedules); a Turn never is. Block the
+    // whole delete if any of its schedules still has booked turns instead of
+    // letting a DataIntegrityViolationException surface from the DB.
+    if (turnRepository.existsByScheduleStablishmentId(id)) {
+      throw new RuntimeException(
+          "No se puede eliminar el establecimiento porque tiene turnos reservados asociados a sus horarios. Cancele o reasigne los turnos antes de eliminarlo.");
     }
     stablishmentRepository.deleteById(id);
   }

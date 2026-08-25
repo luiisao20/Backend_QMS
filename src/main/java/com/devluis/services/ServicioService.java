@@ -38,6 +38,7 @@ public class ServicioService {
   private final DoctorRepository doctorRepository;
   private final ScheduleRepository scheduleRepository;
   private final StablishmentRepository stablishmentRepository;
+  private final com.devluis.repository.TurnRepository turnRepository;
 
   public ServicioDTO create(ServicioDTO dto) {
     Servicio servicio = mapToEntity(dto);
@@ -140,6 +141,12 @@ public class ServicioService {
   public void delete(Long id) {
     if (!serviceRepository.existsById(id)) {
       throw new RuntimeException("Servicio no encontrado");
+    }
+    // Same guard as StablishmentService.delete: a turn-less Schedule is
+    // disposable, a Turn never is.
+    if (turnRepository.existsByScheduleServiceId(id)) {
+      throw new RuntimeException(
+          "No se puede eliminar el servicio porque tiene turnos reservados asociados a sus horarios. Cancele o reasigne los turnos antes de eliminarlo.");
     }
     serviceRepository.deleteById(id);
   }

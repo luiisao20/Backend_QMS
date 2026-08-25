@@ -45,7 +45,7 @@ public class Operator {
   @Column(columnDefinition = "timestamptz")
   private OffsetDateTime createdAt;
 
-  @OneToMany(mappedBy = "operator", cascade = CascadeType.ALL)
+  @OneToMany(mappedBy = "operator")
   private List<Turn> turns;
 
   @ManyToOne

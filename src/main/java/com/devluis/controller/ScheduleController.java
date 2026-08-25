@@ -3,6 +3,7 @@ package com.devluis.controller;
 import com.devluis.dto.ScheduleDTO;
 import com.devluis.services.ScheduleService;
 import com.devluis.types.GenerateSchedulesBody;
+import com.devluis.types.ScheduleStatus;
 
 import jakarta.validation.Valid;
 import lombok.Data;
@@ -39,8 +40,12 @@ public class ScheduleController {
       @RequestParam(required = false) Long stablishmentId,
       @RequestParam(required = false) UUID doctorId,
       @RequestParam(required = false) String doctorName,
+      @RequestParam(required = false) Long serviceId,
+      @RequestParam(required = false) @DateTimeFormat(iso = ISO.DATE) LocalDate from,
+      @RequestParam(required = false) @DateTimeFormat(iso = ISO.DATE) LocalDate to,
+      @RequestParam(required = false) ScheduleStatus status,
       @PageableDefault(size = 10, sort = {"date", "hour"}, direction = Direction.ASC) Pageable pageable) {
-    return scheduleService.getAll(date, stablishmentId, doctorId, doctorName, pageable);
+    return scheduleService.getAll(date, stablishmentId, doctorId, doctorName, serviceId, from, to, status, pageable);
   }
 
   @GetMapping("/{id}")

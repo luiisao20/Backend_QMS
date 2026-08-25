@@ -65,6 +65,6 @@ public class Patient {
 
   private String emergencyContactName;
 
-  @OneToMany(mappedBy = "patient", cascade = CascadeType.ALL)
+  @OneToMany(mappedBy = "patient")
   private List<Turn> turns;
 }

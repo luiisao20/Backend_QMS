@@ -149,8 +149,15 @@ public class AuthService {
     String jwt = JwtProvider.generateFlashToken(auth);
     SecurityContextHolder.getContext().setAuthentication(auth);
 
-    mailService.sendTestEmail(email, "Completa tu registro - Código OTP",
-        "Se ha generado tu código de verificación OTP: " + otp + ".\nPor favor ingrésalo en la plataforma para continuar con tu registro.");
+    // The OTP is already saved at this point. If the mail server is down, the
+    // registration flow must not blow up on an already-stored OTP — log and
+    // continue, same pattern as TurnService.sendTurnEmail.
+    try {
+      mailService.sendTestEmail(email, "Completa tu registro - Código OTP",
+          "Se ha generado tu código de verificación OTP: " + otp + ".\nPor favor ingrésalo en la plataforma para continuar con tu registro.");
+    } catch (Exception e) {
+      System.err.println("Error al enviar correo de OTP de registro: " + e.getMessage());
+    }
 
     return AuthResult.ok(InitRegistrationResult.builder().jwtToken(jwt).build());
   }

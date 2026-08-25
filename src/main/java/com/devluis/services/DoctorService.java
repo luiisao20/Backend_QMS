@@ -29,6 +29,7 @@ public class DoctorService implements UserDetailsService {
   private final PasswordEncoder passwordEncoder;
   private final com.devluis.repository.StablishmentRepository stablishmentRepository;
   private final com.devluis.repository.ServiceRepository serviceRepository;
+  private final com.devluis.repository.TurnRepository turnRepository;
 
   public Authentication loginEmail(String email, String password) {
     try {
@@ -128,6 +129,12 @@ public class DoctorService implements UserDetailsService {
   public void deleteDoctor(UUID id) {
     if (!doctorRepository.existsById(id)) {
       throw new RuntimeException("Doctor no encontrado");
+    }
+    // Same guard as StablishmentService.delete / ServicioService.delete: a
+    // turn-less Schedule is disposable, a Turn never is.
+    if (turnRepository.existsByScheduleDoctorUuid(id)) {
+      throw new RuntimeException(
+          "No se puede eliminar el doctor porque tiene turnos reservados asociados a sus horarios. Cancele o reasigne los turnos antes de eliminarlo.");
     }
     doctorRepository.deleteById(id);
   }
