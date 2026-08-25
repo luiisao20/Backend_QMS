@@ -1,5 +1,6 @@
 package com.devluis.repository;
 
+import java.time.OffsetDateTime;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -15,6 +16,11 @@ public interface PatientRepository extends JpaRepository<Patient, UUID> {
   Optional<Patient> findByEmail(String email);
 
   Optional<Patient> findByCi(String ci);
+
+  // Metrics aggregate (MetricsController / MetricsService): "new patients in
+  // [from, toExclusive)". A plain derived-query COUNT — UNVERIFIED AGAINST A
+  // REAL DATABASE, see the apply report.
+  long countByCreatedAtGreaterThanEqualAndCreatedAtLessThan(OffsetDateTime from, OffsetDateTime toExclusive);
 
   @Query("SELECT p FROM Patient p WHERE " +
       "(:ci IS NULL OR :ci = '' OR LOWER(p.ci) LIKE LOWER(CONCAT('%', :ci, '%'))) AND " +

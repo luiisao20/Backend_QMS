@@ -8,7 +8,9 @@ import java.util.UUID;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
+import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import com.devluis.dto.DoctorDTO;
 import com.devluis.dto.OperatorDTO;
@@ -16,6 +18,7 @@ import com.devluis.dto.PatientDTO;
 import com.devluis.dto.ScheduleDTO;
 import com.devluis.dto.ServicioDTO;
 import com.devluis.dto.StablishmentDTO;
+import com.devluis.dto.TurnBoardDTO;
 import com.devluis.dto.TurnDTO;
 import com.devluis.entity.Patient;
 import com.devluis.entity.Schedule;
@@ -30,9 +33,11 @@ import jakarta.persistence.criteria.Join;
 import jakarta.persistence.criteria.JoinType;
 import jakarta.persistence.criteria.Predicate;
 import lombok.Data;
+import lombok.extern.slf4j.Slf4j;
 
 @Service
 @Data
+@Slf4j
 public class TurnService {
 
   private final TurnRepository turnRepository;
@@ -42,6 +47,7 @@ public class TurnService {
   private final org.springframework.messaging.simp.SimpMessagingTemplate messagingTemplate;
   private final MailService mailService;
 
+  @Transactional
   public TurnDTO create(TurnDTO dto, String authName) {
     // 1. Obtener el paciente a partir de la autenticación
     Patient patient = null;
@@ -57,6 +63,12 @@ public class TurnService {
     if (!schedule.getStatus().equals(ScheduleStatus.STATUS_FREE)) {
       throw new RuntimeException("Este horario ya se encuentra ocupado o cancelado");
     }
+
+    // Ocupa el horario de forma atómica (bloqueo optimista, ver
+    // occupySchedule). Si otra reserva ganó la carrera entre el chequeo de
+    // arriba y este punto, esto lanza un mensaje claro en español en lugar de
+    // permitir que se cree un turno duplicado sobre el mismo horario.
+    occupySchedule(schedule);
 
     // 3. Determinar el orden y crear el turno
     Long currentTurnsCount = turnRepository.countTurnsByServiceAndDate(schedule.getService().getId(),
@@ -76,6 +88,7 @@ public class TurnService {
     return savedDTO;
   }
 
+  @Transactional
   public TurnDTO createByStaff(TurnDTO dto, String staffAuthName) {
     if (dto.getPatient() == null || dto.getPatient().getUuid() == null) {
       throw new RuntimeException("Debe proporcionar el uuid del paciente");
@@ -90,6 +103,8 @@ public class TurnService {
     if (!schedule.getStatus().equals(ScheduleStatus.STATUS_FREE)) {
       throw new RuntimeException("Este horario ya se encuentra ocupado o cancelado");
     }
+
+    occupySchedule(schedule);
 
     Long currentTurnsCount = turnRepository.countTurnsByServiceAndDate(schedule.getService().getId(),
         schedule.getDate());
@@ -200,6 +215,17 @@ public class TurnService {
     Turn turn = turnRepository.findById(turnId)
         .orElseThrow(() -> new RuntimeException("Turno no encontrado"));
 
+    // Design decision: TURN_PENDING is deliberately still accepted as a
+    // source state. Before markAsWaiting/markAsInTreatment existed, every
+    // turn in the system went straight from PENDING to TREATED, so rejecting
+    // PENDING here would break every turn that has not gone through the new
+    // queue steps (and any establishment that chooses to skip them). Only
+    // the terminal states are rejected, to stop double-treating a turn or
+    // reviving one that was already cancelled.
+    if (turn.getStatus() == TurnStatus.TURN_TREATED || turn.getStatus() == TurnStatus.TURN_CANCELLED) {
+      throw new RuntimeException("No se puede marcar como atendido un turno que ya fue atendido o cancelado");
+    }
+
     if (turn.getSchedule() == null || turn.getSchedule().getDoctor() == null) {
       throw new RuntimeException("El turno no tiene un doctor asignado");
     }
@@ -217,6 +243,53 @@ public class TurnService {
     return updatedDTO;
   }
 
+  // Check-in: the patient arrived and registered at the counter.
+  public TurnDTO markAsWaiting(Long turnId, String staffAuthName) {
+    Turn turn = turnRepository.findById(turnId)
+        .orElseThrow(() -> new RuntimeException("Turno no encontrado"));
+
+    if (turn.getStatus() != TurnStatus.TURN_PENDING) {
+      throw new RuntimeException("Solo se puede registrar el ingreso de un turno que está pendiente");
+    }
+
+    try {
+      operatorRepository.findById(UUID.fromString(staffAuthName)).ifPresent(turn::setOperator);
+    } catch (Exception e) {
+      // Ignore if the authenticated principal is not an Operator UUID
+    }
+
+    turn.setStatus(TurnStatus.TURN_WAITNG);
+
+    Turn updated = turnRepository.save(turn);
+    TurnDTO updatedDTO = mapToDTO(updated);
+    broadcastTurnUpdate(updated, updatedDTO);
+    return updatedDTO;
+  }
+
+  // Start attention: the doctor/counter calls the patient in from the waiting room.
+  public TurnDTO markAsInTreatment(Long turnId, String staffAuthName) {
+    Turn turn = turnRepository.findById(turnId)
+        .orElseThrow(() -> new RuntimeException("Turno no encontrado"));
+
+    if (turn.getStatus() != TurnStatus.TURN_WAITNG) {
+      throw new RuntimeException("Solo se puede iniciar la atención de un turno que está en sala de espera");
+    }
+
+    try {
+      operatorRepository.findById(UUID.fromString(staffAuthName)).ifPresent(turn::setOperator);
+    } catch (Exception e) {
+      // Ignore if the authenticated principal is not an Operator UUID
+    }
+
+    turn.setStatus(TurnStatus.TURN_IN_TREATMENT);
+
+    Turn updated = turnRepository.save(turn);
+    TurnDTO updatedDTO = mapToDTO(updated);
+    broadcastTurnUpdate(updated, updatedDTO);
+    return updatedDTO;
+  }
+
+  @Transactional
   public TurnDTO cancelTurn(Long turnId, String patientUuidStr) {
     Turn turn = turnRepository.findById(turnId)
         .orElseThrow(() -> new RuntimeException("Turno no encontrado"));
@@ -239,11 +312,17 @@ public class TurnService {
     turn.setCancelledAt(OffsetDateTime.now());
 
     Turn updated = turnRepository.save(turn);
+    // La cancelación en sí ya quedó guardada arriba: liberar el horario es un
+    // efecto secundario best-effort (ver releaseScheduleIfUnclaimed) y nunca
+    // debe hacer fallar la cancelación del turno.
+    releaseScheduleIfUnclaimed(updated.getSchedule(), updated.getId());
+
     TurnDTO updatedDTO = mapToDTO(updated);
     broadcastTurnUpdate(updated, updatedDTO);
     return updatedDTO;
   }
 
+  @Transactional
   public TurnDTO reassignTurn(Long turnId, Long newScheduleId, String staffAuthName) {
     Turn turn = turnRepository.findById(turnId)
         .orElseThrow(() -> new RuntimeException("Turno no encontrado"));
@@ -261,6 +340,22 @@ public class TurnService {
 
     Schedule oldSchedule = turn.getSchedule();
 
+    // Design decision: reassignment must stay within the SAME service
+    // (specialty) — a cardiology turn can never land on a dermatology slot,
+    // since the patient booked for a kind of care, not a specific slot.
+    // Changing DOCTOR within the same service is deliberately ALLOWED: the
+    // most common real reason to reassign a turn is that the originally
+    // assigned doctor became unavailable, so forcing the same doctor here
+    // would make reassignment useless for exactly the case it exists to fix.
+    Long oldServiceId = (oldSchedule != null && oldSchedule.getService() != null)
+        ? oldSchedule.getService().getId()
+        : null;
+    Long newServiceId = newSchedule.getService() != null ? newSchedule.getService().getId() : null;
+
+    if (oldServiceId == null || !oldServiceId.equals(newServiceId)) {
+      throw new RuntimeException("No se puede reasignar el turno a un horario de un servicio distinto al original");
+    }
+
     Long currentTurnsCount = turnRepository.countTurnsByServiceAndDate(
         newSchedule.getService().getId(),
         newSchedule.getDate());
@@ -272,11 +367,21 @@ public class TurnService {
       // Ignorar si no es UUID de operador
     }
 
+    // Ocupa el nuevo horario ANTES de tocar el turno: si alguien más lo ganó
+    // en la misma fracción de segundo (ver occupySchedule), esto lanza aquí y
+    // el turno original queda completamente intacto — nada se guarda todavía.
+    occupySchedule(newSchedule);
+
     turn.setSchedule(newSchedule);
     turn.setOrder(nextOrder);
     turn.setStatus(TurnStatus.TURN_PENDING);
 
     Turn updated = turnRepository.save(turn);
+
+    // Libera el horario anterior — solo si nadie más lo reclama y no fue
+    // marcado como no disponible por un administrador (releaseScheduleIfUnclaimed).
+    releaseScheduleIfUnclaimed(oldSchedule, updated.getId());
+
     TurnDTO updatedDTO = mapToDTO(updated);
 
     if (oldSchedule != null) {
@@ -312,6 +417,7 @@ public class TurnService {
     return updatedDTO;
   }
 
+  @Transactional
   public TurnDTO cancelTurnByStaff(Long turnId, String staffAuthName, String reason) {
     Turn turn = turnRepository.findById(turnId)
         .orElseThrow(() -> new RuntimeException("Turno no encontrado"));
@@ -330,6 +436,8 @@ public class TurnService {
     turn.setCancelledAt(java.time.OffsetDateTime.now());
 
     Turn updated = turnRepository.save(turn);
+    releaseScheduleIfUnclaimed(updated.getSchedule(), updated.getId());
+
     TurnDTO updatedDTO = mapToDTO(updated);
     broadcastTurnUpdate(updated, updatedDTO);
 
@@ -357,11 +465,17 @@ public class TurnService {
     PatientDTO patientDTO = null;
     if (entity.getPatient() != null) {
       patientDTO = PatientDTO.builder()
-          // Ocultamos el uuid y el password
+          // Password stays hidden — never set here. uuid IS now exposed
+          // (unlike before): staff needs it to book a follow-up turn for the
+          // same patient via POST /api/turns/staff, which requires
+          // patient.uuid in the request body. A patient reading their own
+          // turn already knows their own uuid — it is their JWT subject.
+          .uuid(entity.getPatient().getUuid())
           .email(entity.getPatient().getEmail())
           .firstName(entity.getPatient().getFirstName())
           .lastName(entity.getPatient().getLastName())
           .ci(entity.getPatient().getCi())
+          .phone(entity.getPatient().getPhone())
           .build();
     }
 
@@ -370,6 +484,10 @@ public class TurnService {
       DoctorDTO doctorDTO = null;
       if (entity.getSchedule().getDoctor() != null) {
         doctorDTO = DoctorDTO.builder()
+            // uuid added: the client needs it to identify/link the doctor
+            // (e.g. show "same doctor" on reassignment), consistent with
+            // servicio/stablishment now also carrying their ids below.
+            .uuid(entity.getSchedule().getDoctor().getUuid())
             .firstName(entity.getSchedule().getDoctor().getFirstName())
             .lastName(entity.getSchedule().getDoctor().getLastName())
             .speciality(entity.getSchedule().getDoctor().getSpeciality())
@@ -379,6 +497,11 @@ public class TurnService {
       ServicioDTO servicioDTO = null;
       if (entity.getSchedule().getService() != null) {
         servicioDTO = ServicioDTO.builder()
+            // id added: the Angular reassign picker reads
+            // turn.schedule.service.id to scope which schedules it offers.
+            // Without it, the filter silently dropped and showed every
+            // service's slots (see reassignTurn's same-service guard below).
+            .id(entity.getSchedule().getService().getId())
             .name(entity.getSchedule().getService().getName())
             .price(entity.getSchedule().getService().getPrice())
             .build();
@@ -392,6 +515,10 @@ public class TurnService {
           .service(servicioDTO)
           .stablishment(entity.getSchedule().getStablishment() != null
               ? StablishmentDTO.builder()
+                  // id added: a legitimate client need (e.g. filtering or
+                  // linking back to "all turns at this establishment"),
+                  // mirroring the same gap fixed on servicio/doctor above.
+                  .id(entity.getSchedule().getStablishment().getId())
                   .name(entity.getSchedule().getStablishment().getName())
                   .address(entity.getSchedule().getStablishment().getAddress())
                   .build()
@@ -419,19 +546,148 @@ public class TurnService {
         .build();
   }
 
-  private void broadcastTurnUpdate(Turn turn, TurnDTO turnDTO) {
-    // Canal por establecimiento (para pantallas de sala de espera)
-    if (turn.getSchedule() != null && turn.getSchedule().getStablishment() != null && turn.getSchedule().getDate() != null) {
-      String topic = "/topic/stablishment/" + turn.getSchedule().getStablishment().getId() + "/" + turn.getSchedule().getDate();
-      messagingTemplate.convertAndSend(topic, turnDTO);
+  /**
+   * Ocupa un horario de forma atómica y traduce una pérdida de la carrera de
+   * concurrencia en un mensaje claro en español.
+   *
+   * Mecanismo elegido: bloqueo optimista via {@code @Version} en
+   * {@link Schedule} (ver esa entidad). {@code saveAndFlush} (en lugar de
+   * {@code save}) es obligatorio aquí: dentro de un método
+   * {@code @Transactional}, un {@code save()} normal solo deja el cambio
+   * pendiente en el contexto de persistencia — el UPDATE real (y por lo
+   * tanto la comprobación de versión) no se ejecuta hasta el commit, momento
+   * en el que ya no es posible atraparlo con un try/catch dentro de este
+   * método. {@code saveAndFlush} fuerza el UPDATE ... WHERE id = ? AND
+   * version = ? de inmediato, así la excepción de bloqueo optimista ocurre,
+   * de forma síncrona, exactamente aquí.
+   */
+  private void occupySchedule(Schedule schedule) {
+    schedule.setStatus(ScheduleStatus.STATUS_OCCUPIED);
+    try {
+      scheduleRepository.saveAndFlush(schedule);
+    } catch (ObjectOptimisticLockingFailureException e) {
+      throw new RuntimeException(
+          "Ese horario acaba de ser reservado por otra persona. Por favor, selecciona otro horario disponible.");
+    }
+  }
+
+  /**
+   * Libera un horario a STATUS_FREE tras un cancelTurn/reassignTurn — pero
+   * SOLO si:
+   *   1. Está actualmente STATUS_OCCUPIED. Un horario STATUS_UNAVAILABLE
+   *      (bloqueado manualmente por un administrador) nunca debe volver a
+   *      FREE solo porque un turno sobre él fue cancelado.
+   *   2. Ningún OTRO turno todavía activo (distinto de {@code turnIdToExclude})
+   *      sigue apuntando a este horario.
+   *
+   * El punto 2 importa por dos razones: (a) en el estado estable, una vez que
+   * toda reserva pasa por {@link #occupySchedule}, nunca debería haber más de
+   * un turno activo por horario — pero (b) los datos creados ANTES de este
+   * arreglo pueden violar esa invariante (es exactamente el bug de "un mismo
+   * horario reservado sin límite" que este cambio corrige), y persisten hasta
+   * que se corra la reconciliación SQL de una sola vez (ver reporte de apply).
+   * Liberar el horario mientras otro turno activo lo sigue reclamando volvería
+   * a ofrecer, por tercera vez, un horario que ya está doblemente reservado.
+   *
+   * Se excluye {@code turnIdToExclude} explícitamente por id (en lugar de
+   * confiar en que su propio cambio de estado a CANCELADO ya sea visible para
+   * esta consulta) para que la comprobación sea correcta sin depender del
+   * orden de flush de Hibernate.
+   *
+   * Esto es un efecto secundario best-effort: cancelar o reasignar un turno
+   * YA se guardó exitosamente antes de llegar aquí, así que una falla al
+   * liberar (p. ej. una colisión de bloqueo optimista contra un administrador
+   * marcando el horario como no disponible en el mismo instante) nunca debe
+   * hacer fallar la operación completa — solo se registra y el horario queda,
+   * en el peor caso, ocupado por más tiempo del necesario (falla en modo
+   * seguro: nunca permite un doble booking, en el peor caso solo posterga la
+   * liberación).
+   */
+  private void releaseScheduleIfUnclaimed(Schedule schedule, Long turnIdToExclude) {
+    if (schedule == null || schedule.getStatus() != ScheduleStatus.STATUS_OCCUPIED) {
+      return;
     }
 
-    // Canal por doctor, servicio y fecha usando autenticación
+    boolean stillClaimedByAnotherActiveTurn = turnRepository.existsByScheduleIdAndStatusNotAndIdNot(
+        schedule.getId(), TurnStatus.TURN_CANCELLED, turnIdToExclude);
+    if (stillClaimedByAnotherActiveTurn) {
+      return;
+    }
+
+    schedule.setStatus(ScheduleStatus.STATUS_FREE);
+    try {
+      scheduleRepository.saveAndFlush(schedule);
+    } catch (ObjectOptimisticLockingFailureException e) {
+      log.warn("No se pudo liberar el horario {} tras una cancelación/reasignación del turno {}: {}",
+          schedule.getId(), turnIdToExclude, e.getMessage());
+    }
+  }
+
+  // Método auxiliar para mapear de Entidad a un payload anónimo, sin datos
+  // del paciente, para el canal de broadcast por establecimiento.
+  private TurnBoardDTO mapToBoardDTO(Turn entity) {
+    Schedule schedule = entity.getSchedule();
+
+    String serviceName = null;
+    String doctorName = null;
+    String stablishmentName = null;
+    java.time.LocalTime hour = null;
+
+    if (schedule != null) {
+      hour = schedule.getHour();
+
+      if (schedule.getService() != null) {
+        serviceName = schedule.getService().getName();
+      }
+
+      if (schedule.getDoctor() != null) {
+        doctorName = schedule.getDoctor().getFirstName() + " " + schedule.getDoctor().getLastName();
+      }
+
+      if (schedule.getStablishment() != null) {
+        stablishmentName = schedule.getStablishment().getName();
+      }
+    }
+
+    return TurnBoardDTO.builder()
+        .id(entity.getId())
+        .order(entity.getOrder())
+        .status(entity.getStatus())
+        .hour(hour)
+        .serviceName(serviceName)
+        .doctorName(doctorName)
+        .stablishmentName(stablishmentName)
+        .build();
+  }
+
+  private void broadcastTurnUpdate(Turn turn, TurnDTO turnDTO) {
+    // Canal anónimo por establecimiento (pantallas de sala de espera +
+    // señal de "algo cambió" para que el panel admin haga su propio refetch
+    // autorizado). WebSocketConfig usa enableSimpleBroker, que NO autoriza
+    // suscripciones: cualquier cliente autenticado (incluido cualquier otro
+    // paciente) puede suscribirse a cualquier /topic/**. Por eso este canal
+    // JAMÁS debe llevar un TurnDTO completo — solo TurnBoardDTO, que no tiene
+    // ningún campo que identifique a un paciente.
+    if (turn.getSchedule() != null && turn.getSchedule().getStablishment() != null && turn.getSchedule().getDate() != null) {
+      String topic = "/topic/stablishment/" + turn.getSchedule().getStablishment().getId() + "/" + turn.getSchedule().getDate();
+      messagingTemplate.convertAndSend(topic, mapToBoardDTO(turn));
+    }
+
+    // Canal por doctor, servicio y fecha usando autenticación (detalle
+    // completo — solo lo recibe el doctor dueño del turno).
     if (turn.getSchedule() != null && turn.getSchedule().getDoctor() != null && turn.getSchedule().getService() != null && turn.getSchedule().getDate() != null) {
       String doctorUuid = turn.getSchedule().getDoctor().getUuid().toString();
       // El cliente se suscribirá a: /user/topic/service/{serviceId}/{date}
       String destination = "/topic/service/" + turn.getSchedule().getService().getId() + "/" + turn.getSchedule().getDate();
       messagingTemplate.convertAndSendToUser(doctorUuid, destination, turnDTO);
+    }
+
+    // Canal por paciente (detalle completo, pero únicamente de SU PROPIO
+    // turno). Mismo mecanismo ya probado arriba para el doctor: el cliente
+    // se suscribirá a /user/topic/turns.
+    if (turn.getPatient() != null && turn.getPatient().getUuid() != null) {
+      String patientUuid = turn.getPatient().getUuid().toString();
+      messagingTemplate.convertAndSendToUser(patientUuid, "/topic/turns", turnDTO);
     }
   }
 

@@ -36,6 +36,16 @@ public class Schedule {
   @Builder.Default
   private ScheduleStatus status = ScheduleStatus.STATUS_FREE;
 
+  // Optimistic-locking guard against double booking: two concurrent bookings
+  // that both read STATUS_FREE will both try to flip it to STATUS_OCCUPIED,
+  // but only the first UPDATE ... WHERE id = ? AND version = ? commits. The
+  // loser gets an ObjectOptimisticLockingFailureException, translated by
+  // TurnService.occupySchedule into a clear Spanish message. See the apply
+  // report for why this was chosen over pessimistic locking or a unique
+  // constraint, and for the required one-off backfill of this column.
+  @Version
+  private Long version;
+
   @ManyToOne(fetch = FetchType.LAZY)
   @JoinColumn(name = "doctor_id")
   private Doctor doctor;

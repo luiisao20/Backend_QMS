@@ -24,6 +24,9 @@ public class ScheduleService {
   private final ServiceRepository serviceRepository;
   private final com.devluis.repository.StablishmentRepository stablishmentRepository;
   private final com.devluis.repository.TurnRepository turnRepository;
+  private final com.devluis.repository.HolidayRepository holidayRepository;
+  private final com.devluis.repository.TimeOffRepository timeOffRepository;
+  private final com.devluis.repository.ScheduleTemplateRepository scheduleTemplateRepository;
 
   public ScheduleDTO create(ScheduleDTO dto) {
     Doctor doctor = doctorRepository.findById(dto.getDoctor().getUuid())
@@ -281,6 +284,26 @@ public class ScheduleService {
       }
     }
 
+    // "Bloqueo de citas" integration: a holiday (global or scoped to this
+    // establishment) or, when a specific doctor was requested, a time-off
+    // covering this date must stop generation from producing ANY slot for
+    // the date — fail fast with a clear message instead of silently
+    // creating bookable slots for a day the clinic (or that doctor) is
+    // closed. Checked here (before the loop), not per-slot: the whole date
+    // is blocked, not individual hours.
+    if (holidayRepository.existsApplicableHoliday(body.getDate(), stablishment.getId())) {
+      throw new RuntimeException(
+          "No se pueden generar horarios para el " + body.getDate()
+              + " porque es un feriado registrado para este establecimiento");
+    }
+
+    if (doctor != null && timeOffRepository.existsByDoctorUuidAndStartDateLessThanEqualAndEndDateGreaterThanEqual(
+        doctor.getUuid(), body.getDate(), body.getDate())) {
+      throw new RuntimeException(
+          "No se pueden generar horarios para el doctor seleccionado el " + body.getDate()
+              + " porque tiene una ausencia (vacaciones o permiso) registrada en esa fecha");
+    }
+
     java.time.LocalTime current = java.time.LocalTime.of(8, 0);
     java.time.LocalTime end = java.time.LocalTime.of(17, 0);
     java.time.LocalTime breakStart = java.time.LocalTime.of(12, 0);
@@ -327,5 +350,119 @@ public class ScheduleService {
         .sorted(java.util.Comparator.comparing(Schedule::getDate).thenComparing(Schedule::getHour))
         .map(this::mapToDTO)
         .toList();
+  }
+
+  // Template-driven generation: reads the applicable ScheduleTemplate for
+  // each date's day-of-week instead of requiring the admin to re-type
+  // startTime/endTime/intervalMinutes for every call. Coexists with
+  // generateSchedules(GenerateSchedulesBody) above — that parameter-driven
+  // path is UNCHANGED and still the only one Angular's specialty-detail
+  // screen calls today. Per-date blockers (holiday, doctor time-off, no
+  // template defined for that weekday, or slots already existing) are
+  // SKIPPED rather than aborting the whole period — the whole point of a
+  // period-driven call is tolerating the days that don't need generation,
+  // unlike the single-date parameter-driven path, which fails hard because
+  // it only ever concerns the one date the caller asked about.
+  public java.util.List<ScheduleDTO> generateSchedulesFromTemplates(
+      com.devluis.types.GenerateSchedulesFromTemplateBody body) {
+    if (body.getTo().isBefore(body.getFrom())) {
+      throw new RuntimeException("La fecha de fin del período no puede ser anterior a la fecha de inicio");
+    }
+
+    Servicio servicio = serviceRepository.findById(body.getServiceId())
+        .orElseThrow(() -> new RuntimeException("Servicio no encontrado"));
+
+    com.devluis.entity.Stablishment stablishment = stablishmentRepository.findById(body.getStablishmentId())
+        .orElseThrow(() -> new RuntimeException("Establecimiento no encontrado"));
+
+    boolean serviceInStablishment = stablishment.getServices() != null &&
+        stablishment.getServices().stream().anyMatch(s -> s.getId().equals(servicio.getId()));
+    if (!serviceInStablishment) {
+        throw new RuntimeException("El servicio seleccionado no está disponible en este establecimiento");
+    }
+
+    Doctor doctor = null;
+    if (body.getDoctorId() != null) {
+      doctor = doctorRepository.findById(body.getDoctorId())
+          .orElseThrow(() -> new RuntimeException("Doctor no encontrado"));
+
+      if (doctor.getServices() == null || !doctor.getServices().stream().anyMatch(s -> s.getId().equals(servicio.getId()))) {
+          throw new RuntimeException("El doctor seleccionado no tiene asignado este servicio");
+      }
+      if (doctor.getStablishments() == null || !doctor.getStablishments().stream().anyMatch(st -> st.getId().equals(stablishment.getId()))) {
+          throw new RuntimeException("El doctor seleccionado no está asignado a este establecimiento");
+      }
+    }
+
+    java.util.UUID doctorUuid = doctor != null ? doctor.getUuid() : null;
+    java.util.List<Schedule> generated = new java.util.ArrayList<>();
+
+    for (java.time.LocalDate date = body.getFrom(); !date.isAfter(body.getTo()); date = date.plusDays(1)) {
+      if (holidayRepository.existsApplicableHoliday(date, stablishment.getId())) {
+        continue;
+      }
+      if (doctor != null && timeOffRepository.existsByDoctorUuidAndStartDateLessThanEqualAndEndDateGreaterThanEqual(
+          doctorUuid, date, date)) {
+        continue;
+      }
+
+      java.util.Optional<com.devluis.entity.ScheduleTemplate> applicable = scheduleTemplateRepository.findApplicable(
+          stablishment.getId(), servicio.getId(), doctorUuid, date.getDayOfWeek(), date);
+      if (applicable.isEmpty()) {
+        continue;
+      }
+
+      generated.addAll(generateSlotsForDate(applicable.get(), servicio, stablishment, doctor, date));
+    }
+
+    if (generated.isEmpty()) {
+      throw new RuntimeException(
+          "No se pudo generar ningún horario en el período indicado: no hay una plantilla aplicable, "
+              + "ya existen los horarios o el período está bloqueado por feriados o ausencias registradas");
+    }
+
+    java.util.List<Schedule> saved = scheduleRepository.saveAll(generated);
+    return saved.stream()
+        .sorted(java.util.Comparator.comparing(Schedule::getDate).thenComparing(Schedule::getHour))
+        .map(this::mapToDTO)
+        .toList();
+  }
+
+  // No lunch-break skip here, unlike generateSchedules' hardcoded
+  // 12:00-13:00 window above: ScheduleTemplate's field list
+  // (day/start/end/interval/validity) deliberately has no break-window
+  // field, so a template's [startTime, endTime) is generated as one
+  // continuous block. See apply report — deliberately NOT done.
+  private java.util.List<Schedule> generateSlotsForDate(
+      com.devluis.entity.ScheduleTemplate template, Servicio servicio, com.devluis.entity.Stablishment stablishment,
+      Doctor doctor, java.time.LocalDate date) {
+    java.util.List<Schedule> slots = new java.util.ArrayList<>();
+    java.time.LocalTime current = template.getStartTime();
+    java.time.LocalTime end = template.getEndTime();
+    int intervalMinutes = template.getSlotIntervalMinutes();
+
+    while (!current.plusMinutes(intervalMinutes).isAfter(end)) {
+      java.time.LocalTime slotEnd = current.plusMinutes(intervalMinutes);
+
+      boolean alreadyExists = doctor != null
+          ? scheduleRepository.existsByDoctorUuidAndDateAndHour(doctor.getUuid(), date, current)
+          : scheduleRepository.existsByServiceIdAndStablishmentIdAndDateAndHour(servicio.getId(), stablishment.getId(), date, current);
+
+      if (!alreadyExists) {
+        Schedule schedule = Schedule.builder()
+            .date(date)
+            .hour(current)
+            .doctor(doctor)
+            .service(servicio)
+            .stablishment(stablishment)
+            .status(com.devluis.types.ScheduleStatus.STATUS_FREE)
+            .build();
+        slots.add(schedule);
+      }
+
+      current = slotEnd;
+    }
+
+    return slots;
   }
 }

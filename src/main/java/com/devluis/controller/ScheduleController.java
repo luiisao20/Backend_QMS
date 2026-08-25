@@ -3,6 +3,7 @@ package com.devluis.controller;
 import com.devluis.dto.ScheduleDTO;
 import com.devluis.services.ScheduleService;
 import com.devluis.types.GenerateSchedulesBody;
+import com.devluis.types.GenerateSchedulesFromTemplateBody;
 import com.devluis.types.ScheduleStatus;
 
 import jakarta.validation.Valid;
@@ -68,5 +69,15 @@ public class ScheduleController {
   public ResponseEntity<List<ScheduleDTO>> generateSchedules(
       @Valid @RequestBody GenerateSchedulesBody body) {
     return new ResponseEntity<>(scheduleService.generateSchedules(body), HttpStatus.CREATED);
+  }
+
+  // Template-driven counterpart of /generate above: reads the applicable
+  // ScheduleTemplate(s) for the requested period instead of the caller
+  // re-typing start/end/interval. /generate is UNCHANGED — Angular's
+  // specialty-detail screen keeps calling it exactly as before.
+  @PostMapping("/generate-from-template")
+  public ResponseEntity<List<ScheduleDTO>> generateSchedulesFromTemplates(
+      @Valid @RequestBody GenerateSchedulesFromTemplateBody body) {
+    return new ResponseEntity<>(scheduleService.generateSchedulesFromTemplates(body), HttpStatus.CREATED);
   }
 }

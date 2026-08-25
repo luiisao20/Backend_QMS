@@ -13,6 +13,7 @@ import com.devluis.repository.ScheduleRepository;
 import com.devluis.repository.ServiceRepository;
 import com.devluis.repository.StablishmentRepository;
 import com.devluis.types.ScheduleStatus;
+import com.devluis.utils.Money;
 
 import jakarta.persistence.criteria.Predicate;
 import lombok.Data;
@@ -77,6 +78,25 @@ public class ServicioService {
     servicio.setName(dto.getName());
     servicio.setPrice(dto.getPrice());
     servicio.setDiscount(dto.getDiscount());
+
+    Servicio updated = serviceRepository.save(servicio);
+    return mapToDTO(updated);
+  }
+
+  // Backs PUT /api/services/{id}/discount — the "precios/descuentos" admin
+  // screen. Deliberately narrower than update(): touches ONLY the discount
+  // column, so that screen never has to resend name/price (fields it has no
+  // business changing) just to adjust a discount. Servicio.discount stays
+  // the single source of truth for what a service costs — see the apply
+  // report for why no separate Discount entity/table was created.
+  public ServicioDTO updateDiscount(Long id, Float discount) {
+    Servicio servicio = serviceRepository.findById(id)
+        .orElseThrow(() -> new RuntimeException("Servicio no encontrado"));
+    if (discount == null || discount < 0) {
+      throw new RuntimeException("El descuento no puede ser negativo");
+    }
+
+    servicio.setDiscount(discount);
 
     Servicio updated = serviceRepository.save(servicio);
     return mapToDTO(updated);
@@ -230,6 +250,7 @@ public class ServicioService {
         .name(entity.getName())
         .price(entity.getPrice())
         .discount(entity.getDiscount())
+        .netPrice(Money.netPrice(entity))
         .build();
   }
 }

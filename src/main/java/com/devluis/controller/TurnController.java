@@ -11,6 +11,7 @@ import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.format.annotation.DateTimeFormat.ISO;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
@@ -75,6 +76,37 @@ public class TurnController {
   @GetMapping("/{id}")
   public ResponseEntity<TurnDTO> getById(@PathVariable Long id) {
     return ResponseEntity.ok(turnService.getById(id));
+  }
+
+  /**
+   * Check-in: the patient arrived and registered at the counter. Staff-only.
+   * "/api/turns/**" only requires authentication under GlobalConfig's general
+   * matcher, so without this the endpoint would be reachable by the turn's
+   * own patient. Mirrors the roles GlobalConfig hardcodes for
+   * "/api/turns/*\/reassign" and "/api/turns/*\/staff-cancel".
+   */
+  @PreAuthorize("hasAnyAuthority('ROLE_EMPLOYEE', 'ROLE_ADMIN')")
+  @PutMapping("/{id}/waiting")
+  public ResponseEntity<?> markAsWaiting(@PathVariable Long id, Authentication auth) {
+    try {
+      return ResponseEntity.ok(turnService.markAsWaiting(id, auth.getName()));
+    } catch (RuntimeException e) {
+      return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("error", e.getMessage()));
+    }
+  }
+
+  /**
+   * Start attention: the patient is called in from the waiting room.
+   * Staff-only for the same reason as {@link #markAsWaiting} above.
+   */
+  @PreAuthorize("hasAnyAuthority('ROLE_EMPLOYEE', 'ROLE_ADMIN')")
+  @PutMapping("/{id}/in-treatment")
+  public ResponseEntity<?> markAsInTreatment(@PathVariable Long id, Authentication auth) {
+    try {
+      return ResponseEntity.ok(turnService.markAsInTreatment(id, auth.getName()));
+    } catch (RuntimeException e) {
+      return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("error", e.getMessage()));
+    }
   }
 
   @PutMapping("/{id}/treated")
