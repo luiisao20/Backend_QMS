@@ -59,6 +59,10 @@ public class Invoice {
   @JoinColumn(name = "patient_id", nullable = false)
   private Patient patient;
 
+  @ManyToOne(fetch = FetchType.LAZY)
+  @JoinColumn(name = "doctor_id", nullable = true)
+  private Doctor doctor;
+
   @Column(nullable = false, precision = 12, scale = 2)
   private BigDecimal total;
 

@@ -32,6 +32,7 @@ import com.devluis.repository.PromotionRepository;
 import com.devluis.repository.ServicePackageRepository;
 import com.devluis.repository.SessionPlanRepository;
 import com.devluis.repository.TurnRepository;
+import com.devluis.repository.DoctorRepository;
 import com.devluis.types.InvoiceLineSourceType;
 import com.devluis.types.InvoiceStatus;
 import com.devluis.types.TurnStatus;
@@ -60,6 +61,7 @@ public class InvoiceService {
   private final InvoiceLineItemRepository invoiceLineItemRepository;
   private final PatientRepository patientRepository;
   private final TurnRepository turnRepository;
+  private final DoctorRepository doctorRepository;
   private final ServicePackageRepository servicePackageRepository;
   private final SessionPlanRepository sessionPlanRepository;
   private final PatientCoverageRepository patientCoverageRepository;
@@ -75,14 +77,21 @@ public class InvoiceService {
   // guarantees a single invoice can never end up with lines billed under two
   // different insurers (see Claim's docblock).
   @Transactional
-  public InvoiceDTO create(InvoiceDTO dto) {
+  public InvoiceDTO create(InvoiceDTO dto, Authentication auth) {
     Patient patient = resolvePatient(dto);
     PatientCoverage activeCoverage = patientCoverageRepository
         .findFirstByPatientUuidAndActiveTrue(patient.getUuid())
         .orElse(null);
 
+    com.devluis.entity.Doctor doctor = null;
+    if (auth != null && auth.getAuthorities().stream().anyMatch(a -> a.getAuthority().equals("ROLE_DOCTOR"))) {
+      java.util.UUID doctorId = java.util.UUID.fromString(auth.getName());
+      doctor = doctorRepository.findById(doctorId).orElse(null);
+    }
+
     Invoice invoice = Invoice.builder()
         .patient(patient)
+        .doctor(doctor)
         .status(InvoiceStatus.ISSUED)
         .items(new java.util.ArrayList<>())
         .build();
@@ -103,7 +112,7 @@ public class InvoiceService {
 
   public InvoiceDTO getById(Long id, Authentication auth) {
     Invoice invoice = findByIdOrThrow(id);
-    invoiceAccessGuard.assertCanAccessInvoice(auth, resolvePatientUuid(invoice));
+    invoiceAccessGuard.assertCanAccessInvoice(auth, invoice);
     return mapToDTO(invoice);
   }
 
@@ -112,6 +121,10 @@ public class InvoiceService {
   // precedent as PatientCoverageService#listForPatient/EncounterService.
   public Page<InvoiceDTO> getForPatient(UUID patientUuid, Pageable pageable) {
     return invoiceRepository.findByPatientUuid(patientUuid, pageable).map(this::mapToDTO);
+  }
+
+  public Page<InvoiceDTO> getForDoctor(UUID doctorUuid, Pageable pageable) {
+    return invoiceRepository.findByDoctorUuid(doctorUuid, pageable).map(this::mapToDTO);
   }
 
   public Page<InvoiceDTO> search(UUID patientUuid, InvoiceStatus status, Pageable pageable) {
@@ -278,6 +291,15 @@ public class InvoiceService {
           .build();
     }
 
+    com.devluis.dto.DoctorDTO doctorDTO = null;
+    if (entity.getDoctor() != null) {
+      doctorDTO = com.devluis.dto.DoctorDTO.builder()
+          .uuid(entity.getDoctor().getUuid())
+          .firstName(entity.getDoctor().getFirstName())
+          .lastName(entity.getDoctor().getLastName())
+          .build();
+    }
+
     List<InvoiceLineItemDTO> itemDTOs = entity.getItems() == null
         ? List.of()
         : entity.getItems().stream().map(this::mapItemToDTO).toList();
@@ -285,6 +307,7 @@ public class InvoiceService {
     return InvoiceDTO.builder()
         .id(entity.getId())
         .patient(patientDTO)
+        .doctor(doctorDTO)
         .items(itemDTOs)
         .total(entity.getTotal())
         .balance(paymentService.getBalance(entity))

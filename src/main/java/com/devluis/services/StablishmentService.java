@@ -137,6 +137,21 @@ public class StablishmentService {
     return mapToDTO(stablishment);
   }
 
+  public StablishmentDTO revokeService(Long stablishmentId, Long serviceId) {
+    Stablishment stablishment = stablishmentRepository.findById(stablishmentId)
+        .orElseThrow(() -> new RuntimeException("Establecimiento no encontrado"));
+
+    com.devluis.entity.Servicio service = serviceRepository.findById(serviceId)
+        .orElseThrow(() -> new RuntimeException("Servicio no encontrado"));
+
+    if (stablishment.getServices() != null && stablishment.getServices().contains(service)) {
+      stablishment.getServices().remove(service);
+      stablishmentRepository.save(stablishment);
+    }
+    
+    return mapToDTO(stablishment);
+  }
+
   private Stablishment mapToEntity(StablishmentDTO dto) {
     return Stablishment.builder()
         .id(dto.getId())

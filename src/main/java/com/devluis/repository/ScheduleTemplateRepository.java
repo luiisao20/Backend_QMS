@@ -33,9 +33,9 @@ public interface ScheduleTemplateRepository
   @Query("SELECT COUNT(t) > 0 FROM ScheduleTemplate t "
       + "WHERE t.doctor.uuid = :doctorUuid "
       + "AND t.dayOfWeek = :dayOfWeek "
-      + "AND (:excludeId IS NULL OR t.id <> :excludeId) "
+      + "AND (cast(:excludeId as long) IS NULL OR t.id <> :excludeId) "
       + "AND t.startTime < :endTime AND :startTime < t.endTime "
-      + "AND (:validUntil IS NULL OR t.validFrom <= :validUntil) "
+      + "AND (cast(:validUntil as date) IS NULL OR t.validFrom <= cast(:validUntil as date)) "
       + "AND (t.validUntil IS NULL OR t.validUntil >= :validFrom)")
   boolean existsOverlappingForDoctor(
       @Param("doctorUuid") UUID doctorUuid,
@@ -55,9 +55,9 @@ public interface ScheduleTemplateRepository
       + "AND t.stablishment.id = :stablishmentId "
       + "AND t.servicio.id = :serviceId "
       + "AND t.dayOfWeek = :dayOfWeek "
-      + "AND (:excludeId IS NULL OR t.id <> :excludeId) "
+      + "AND (cast(:excludeId as long) IS NULL OR t.id <> :excludeId) "
       + "AND t.startTime < :endTime AND :startTime < t.endTime "
-      + "AND (:validUntil IS NULL OR t.validFrom <= :validUntil) "
+      + "AND (cast(:validUntil as date) IS NULL OR t.validFrom <= cast(:validUntil as date)) "
       + "AND (t.validUntil IS NULL OR t.validUntil >= :validFrom)")
   boolean existsOverlappingForPool(
       @Param("stablishmentId") Long stablishmentId,

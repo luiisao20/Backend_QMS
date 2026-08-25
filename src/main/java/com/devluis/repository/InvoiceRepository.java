@@ -24,6 +24,9 @@ public interface InvoiceRepository extends JpaRepository<Invoice, Long> {
   @Query("SELECT i FROM Invoice i WHERE i.patient.uuid = :patientUuid ORDER BY i.issuedAt DESC")
   Page<Invoice> findByPatientUuid(@Param("patientUuid") UUID patientUuid, Pageable pageable);
 
+  @Query("SELECT i FROM Invoice i WHERE i.doctor.uuid = :doctorUuid ORDER BY i.issuedAt DESC")
+  Page<Invoice> findByDoctorUuid(@Param("doctorUuid") UUID doctorUuid, Pageable pageable);
+
   // Staff bare-collection browse (GET /api/invoices), same
   // "(:param IS NULL OR ...)" optional-filter idiom as
   // TurnRepository.countByDayAndStatus. UNVERIFIED AGAINST A REAL DATABASE.

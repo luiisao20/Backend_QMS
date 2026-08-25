@@ -176,13 +176,15 @@ public class GlobalConfig {
             // below for the same reason as every other
             // "/api/patients/*/..." sub-resource matcher above.
             .requestMatchers(HttpMethod.POST, "/api/invoices")
-            .hasAnyAuthority("ROLE_EMPLOYEE", "ROLE_ADMIN")
+            .hasAnyAuthority("ROLE_EMPLOYEE", "ROLE_ADMIN", "ROLE_DOCTOR")
             .requestMatchers(HttpMethod.GET, "/api/invoices", "/api/patients/*/invoices")
             .hasAnyAuthority("ROLE_EMPLOYEE", "ROLE_ADMIN")
+            .requestMatchers(HttpMethod.GET, "/api/doctors/me/invoices")
+            .hasAuthority("ROLE_DOCTOR")
             .requestMatchers(HttpMethod.POST, "/api/invoices/*/payments")
             .hasAnyAuthority("ROLE_EMPLOYEE", "ROLE_ADMIN")
             .requestMatchers(HttpMethod.GET, "/api/invoices/*/payments")
-            .hasAnyAuthority("ROLE_EMPLOYEE", "ROLE_ADMIN")
+            .hasAnyAuthority("ROLE_EMPLOYEE", "ROLE_ADMIN", "ROLE_DOCTOR")
             // Voiding an invoice corrects/reverses an already-issued
             // financial record rather than creating a new one — stricter
             // than ordinary billing writes on purpose, ROLE_ADMIN only (see

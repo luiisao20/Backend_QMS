@@ -35,6 +35,7 @@ public class ScheduleTemplateService {
   private final StablishmentRepository stablishmentRepository;
   private final ServiceRepository serviceRepository;
   private final DoctorRepository doctorRepository;
+  private final com.devluis.repository.ScheduleRepository scheduleRepository;
 
   public ScheduleTemplateDTO create(ScheduleTemplateDTO dto) {
     Stablishment stablishment = resolveStablishment(dto);
@@ -114,21 +115,58 @@ public class ScheduleTemplateService {
     template.setValidFrom(dto.getValidFrom());
     template.setValidUntil(dto.getValidUntil());
 
-    // No sweep of existing Schedule rows here — see ScheduleTemplate's
-    // docblock ("PRE-EXISTING SLOTS ON UPDATE/DELETE"): a template is a pure
-    // generator input, so narrowing it only changes FUTURE
-    // generateSchedulesFromTemplates calls.
+    // Sweep old free schedules from today onwards before applying changes
+    sweepTemplateSchedules(template);
+
+    template.setStablishment(stablishment);
+    template.setServicio(servicio);
+    template.setDoctor(doctor);
+    template.setDayOfWeek(dto.getDayOfWeek());
+    template.setStartTime(dto.getStartTime());
+    template.setEndTime(dto.getEndTime());
+    template.setSlotIntervalMinutes(dto.getSlotIntervalMinutes());
+    template.setValidFrom(dto.getValidFrom());
+    template.setValidUntil(dto.getValidUntil());
+
     ScheduleTemplate updated = scheduleTemplateRepository.save(template);
     return mapToDTO(updated);
   }
 
   public void delete(Long id) {
-    if (!scheduleTemplateRepository.existsById(id)) {
+    ScheduleTemplate template = scheduleTemplateRepository.findById(id).orElse(null);
+    if (template == null) {
       throw new RuntimeException("Plantilla de horario no encontrada");
     }
-    // Same non-goal as update(): deleting a template never touches an
-    // already-generated Schedule row.
+    
+    // Sweep free schedules corresponding to this template
+    sweepTemplateSchedules(template);
+    
     scheduleTemplateRepository.deleteById(id);
+  }
+
+  private void sweepTemplateSchedules(ScheduleTemplate template) {
+    List<com.devluis.entity.Schedule> candidates = scheduleRepository.findAll((root, query, cb) -> {
+        List<Predicate> preds = new ArrayList<>();
+        preds.add(cb.equal(root.get("stablishment").get("id"), template.getStablishment().getId()));
+        preds.add(cb.equal(root.get("service").get("id"), template.getServicio().getId()));
+        
+        if (template.getDoctor() != null) {
+            preds.add(cb.equal(root.get("doctor").get("uuid"), template.getDoctor().getUuid()));
+        } else {
+            preds.add(cb.isNull(root.get("doctor")));
+        }
+        
+        preds.add(cb.greaterThanOrEqualTo(root.get("date"), LocalDate.now()));
+        return cb.and(preds.toArray(new Predicate[0]));
+    });
+
+    List<com.devluis.entity.Schedule> toDelete = candidates.stream()
+        .filter(s -> s.getDate().getDayOfWeek() == template.getDayOfWeek())
+        .filter(s -> !s.getHour().isBefore(template.getStartTime()) && s.getHour().isBefore(template.getEndTime()))
+        .filter(s -> s.getStatus() == com.devluis.types.ScheduleStatus.STATUS_FREE)
+        .toList();
+
+    scheduleRepository.deleteAll(toDelete);
   }
 
   private ScheduleTemplate findByIdOrThrow(Long id) {

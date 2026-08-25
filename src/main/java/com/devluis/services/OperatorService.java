@@ -129,6 +129,20 @@ public class OperatorService implements UserDetailsService {
       return mapToDTO(operatorRepository.save(operator));
   }
 
+  public OperatorDTO revokeStablishment(UUID operatorId, Long stablishmentId) {
+      Operator operator = operatorRepository.findById(operatorId)
+          .orElseThrow(() -> new RuntimeException("Operador no encontrado"));
+      
+      com.devluis.entity.Stablishment stablishment = stablishmentRepository.findById(stablishmentId)
+          .orElseThrow(() -> new RuntimeException("Establecimiento no encontrado"));
+          
+      if (operator.getStablishment() != null && operator.getStablishment().getId().equals(stablishment.getId())) {
+          operator.setStablishment(null);
+          operatorRepository.save(operator);
+      }
+      return mapToDTO(operator);
+  }
+
   public void updatePassword(UUID id, String newPassword) {
     Operator operator = operatorRepository.findById(id)
         .orElseThrow(() -> new RuntimeException("Operador no encontrado"));

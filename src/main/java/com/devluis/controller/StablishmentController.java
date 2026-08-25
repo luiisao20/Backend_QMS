@@ -55,6 +55,11 @@ public class StablishmentController {
     return ResponseEntity.ok(stablishmentService.assignService(id, serviceId));
   }
 
+  @DeleteMapping("/{id}/services/{serviceId}")
+  public ResponseEntity<StablishmentDTO> revokeService(@PathVariable Long id, @PathVariable Long serviceId) {
+    return ResponseEntity.ok(stablishmentService.revokeService(id, serviceId));
+  }
+
   @GetMapping("/{id}/services")
   public ResponseEntity<Page<ServicioDTO>> getServicesByStablishment(
       @PathVariable Long id,

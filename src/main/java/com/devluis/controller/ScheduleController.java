@@ -1,5 +1,6 @@
 package com.devluis.controller;
 
+import com.devluis.dto.DoctorDTO;
 import com.devluis.dto.ScheduleDTO;
 import com.devluis.services.ScheduleService;
 import com.devluis.types.GenerateSchedulesBody;
@@ -21,6 +22,7 @@ import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.format.annotation.DateTimeFormat.ISO;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -30,7 +32,7 @@ public class ScheduleController {
 
   private final ScheduleService scheduleService;
 
-  @PostMapping({"", "/create"})
+  @PostMapping({ "", "/create" })
   public ResponseEntity<ScheduleDTO> create(@Valid @RequestBody ScheduleDTO dto) {
     return new ResponseEntity<>(scheduleService.create(dto), HttpStatus.CREATED);
   }
@@ -45,7 +47,7 @@ public class ScheduleController {
       @RequestParam(required = false) @DateTimeFormat(iso = ISO.DATE) LocalDate from,
       @RequestParam(required = false) @DateTimeFormat(iso = ISO.DATE) LocalDate to,
       @RequestParam(required = false) ScheduleStatus status,
-      @PageableDefault(size = 10, sort = {"date", "hour"}, direction = Direction.ASC) Pageable pageable) {
+      @PageableDefault(size = 10, sort = { "date", "hour" }, direction = Direction.ASC) Pageable pageable) {
     return scheduleService.getAll(date, stablishmentId, doctorId, doctorName, serviceId, from, to, status, pageable);
   }
 
@@ -63,6 +65,49 @@ public class ScheduleController {
   public ResponseEntity<Void> delete(@PathVariable Long id) {
     scheduleService.delete(id);
     return ResponseEntity.noContent().build();
+  }
+
+  @PostMapping("/bulk-delete")
+  public ResponseEntity<Void> bulkDelete(@RequestBody List<Long> ids) {
+    scheduleService.bulkDelete(ids);
+    return ResponseEntity.noContent().build();
+  }
+
+  @PutMapping("/bulk-update-status")
+  public ResponseEntity<Void> bulkUpdateStatus(@RequestParam ScheduleStatus status, @RequestBody List<Long> ids) {
+    scheduleService.bulkUpdateStatus(status, ids);
+    return ResponseEntity.noContent().build();
+  }
+
+  @GetMapping("/my-schedules")
+  public Page<ScheduleDTO> getMySchedules(
+      @RequestParam(required = false) @DateTimeFormat(iso = ISO.DATE) LocalDate date,
+      @RequestParam(required = false) Long stablishmentId,
+      @RequestParam(required = false) Long serviceId,
+      @RequestParam(required = false) ScheduleStatus status,
+      @PageableDefault(size = 10, sort = { "date", "hour" }, direction = Direction.ASC) Pageable pageable,
+      org.springframework.security.core.Authentication auth) {
+    UUID doctorId = UUID.fromString(auth.getName());
+    return scheduleService.getAll(date, stablishmentId, doctorId, null, serviceId, null, null, status, pageable);
+  }
+
+  @PostMapping("/my-schedules/create")
+  public ResponseEntity<ScheduleDTO> createMySchedule(@Valid @RequestBody ScheduleDTO dto, Authentication auth) {
+    UUID doctorId = UUID.fromString(auth.getName());
+    if (dto.getDoctor() == null) {
+      dto.setDoctor(new DoctorDTO());
+    }
+    dto.getDoctor().setUuid(doctorId);
+    return new ResponseEntity<>(scheduleService.create(dto), HttpStatus.CREATED);
+  }
+
+  @PutMapping("/my-schedules/{id}/status")
+  public ResponseEntity<ScheduleDTO> updateMyScheduleStatus(
+      @PathVariable Long id, 
+      @RequestBody ScheduleDTO dto, 
+      org.springframework.security.core.Authentication auth) {
+      UUID doctorId = UUID.fromString(auth.getName());
+      return ResponseEntity.ok(scheduleService.updateMyScheduleStatus(id, dto.getStatus(), doctorId));
   }
 
   @PostMapping("/generate")

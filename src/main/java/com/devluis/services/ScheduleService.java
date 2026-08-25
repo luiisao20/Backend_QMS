@@ -216,6 +216,45 @@ public class ScheduleService {
     scheduleRepository.deleteById(id);
   }
 
+  public void bulkDelete(java.util.List<Long> ids) {
+    if (ids == null || ids.isEmpty()) return;
+    for (Long id : ids) {
+      if (scheduleRepository.existsById(id)) {
+        if (!turnRepository.existsByScheduleId(id)) {
+          scheduleRepository.deleteById(id);
+        }
+      }
+    }
+  }
+
+  public void bulkUpdateStatus(com.devluis.types.ScheduleStatus status, java.util.List<Long> ids) {
+    if (ids == null || ids.isEmpty() || status == null) return;
+    java.util.List<Schedule> schedules = scheduleRepository.findAllById(ids);
+    for (Schedule schedule : schedules) {
+        // Optional: you may want to prevent modifying STATUS_OCCUPIED schedules
+        if (schedule.getStatus() != com.devluis.types.ScheduleStatus.STATUS_OCCUPIED) {
+            schedule.setStatus(status);
+        }
+    }
+    scheduleRepository.saveAll(schedules);
+  }
+
+  public ScheduleDTO updateMyScheduleStatus(Long id, com.devluis.types.ScheduleStatus newStatus, java.util.UUID doctorId) {
+    Schedule schedule = scheduleRepository.findById(id)
+        .orElseThrow(() -> new RuntimeException("Horario no encontrado"));
+
+    if (schedule.getDoctor() == null || !schedule.getDoctor().getUuid().equals(doctorId)) {
+        throw new RuntimeException("No tienes permiso para modificar este horario");
+    }
+
+    if (schedule.getStatus() == com.devluis.types.ScheduleStatus.STATUS_FREE && newStatus == com.devluis.types.ScheduleStatus.STATUS_UNAVAILABLE) {
+        schedule.setStatus(newStatus);
+        return mapToDTO(scheduleRepository.save(schedule));
+    } else {
+        throw new RuntimeException("Solo se permite cambiar el estado de LIBRE a NO DISPONIBLE.");
+    }
+  }
+
   private ScheduleDTO mapToDTO(Schedule entity) {
     DoctorDTO doctorDTO = null;
     if (entity.getDoctor() != null) {
@@ -443,6 +482,11 @@ public class ScheduleService {
 
     while (!current.plusMinutes(intervalMinutes).isAfter(end)) {
       java.time.LocalTime slotEnd = current.plusMinutes(intervalMinutes);
+
+      if (current.isBefore(java.time.LocalTime.of(13, 0)) && slotEnd.isAfter(java.time.LocalTime.of(12, 0))) {
+        current = java.time.LocalTime.of(13, 0);
+        continue;
+      }
 
       boolean alreadyExists = doctor != null
           ? scheduleRepository.existsByDoctorUuidAndDateAndHour(doctor.getUuid(), date, current)

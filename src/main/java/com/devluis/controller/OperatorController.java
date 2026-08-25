@@ -57,6 +57,13 @@ public class OperatorController {
     return ResponseEntity.ok(operatorService.assignToStablishment(id, stablishmentId));
   }
 
+  @DeleteMapping("/{id}/stablishments/{stablishmentId}")
+  public ResponseEntity<OperatorDTO> revokeStablishment(
+      @PathVariable UUID id,
+      @PathVariable Long stablishmentId) {
+    return ResponseEntity.ok(operatorService.revokeStablishment(id, stablishmentId));
+  }
+
   @PutMapping("/{id}")
   public ResponseEntity<OperatorDTO> updateInfo(@PathVariable UUID id, @Valid @RequestBody OperatorDTO operatorDTO) {
     return ResponseEntity.ok(operatorService.updateOperator(id, operatorDTO));

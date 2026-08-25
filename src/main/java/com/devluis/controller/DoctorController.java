@@ -27,6 +27,7 @@ public class DoctorController {
 
   private final DoctorService doctorService;
   private final MailService mailService;
+  private final com.devluis.services.InvoiceService invoiceService;
 
   @PostMapping("/register")
   public ResponseEntity<DoctorDTO> register(@Valid @RequestBody DoctorDTO doctorDTO) {
@@ -40,6 +41,13 @@ public class DoctorController {
             + ",\n\nHas sido registrado exitosamente como Doctor en el sistema QMS.");
 
     return new ResponseEntity<>(created, HttpStatus.CREATED);
+  }
+
+  @GetMapping("/me/invoices")
+  public ResponseEntity<Page<com.devluis.dto.InvoiceDTO>> getMyInvoices(
+      @PageableDefault(size = 10) Pageable pageable, Authentication auth) {
+    UUID doctorUuid = UUID.fromString(auth.getName());
+    return ResponseEntity.ok(invoiceService.getForDoctor(doctorUuid, pageable));
   }
 
   @GetMapping
@@ -67,6 +75,20 @@ public class DoctorController {
       @PathVariable UUID id,
       @PathVariable Long serviceId) {
     return ResponseEntity.ok(doctorService.assignToService(id, serviceId));
+  }
+
+  @DeleteMapping("/{id}/stablishments/{stablishmentId}")
+  public ResponseEntity<DoctorDTO> revokeStablishment(
+      @PathVariable UUID id,
+      @PathVariable Long stablishmentId) {
+    return ResponseEntity.ok(doctorService.revokeStablishment(id, stablishmentId));
+  }
+
+  @DeleteMapping("/{id}/services/{serviceId}")
+  public ResponseEntity<DoctorDTO> revokeService(
+      @PathVariable UUID id,
+      @PathVariable Long serviceId) {
+    return ResponseEntity.ok(doctorService.revokeService(id, serviceId));
   }
 
   @PutMapping("/{id}")

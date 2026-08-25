@@ -197,6 +197,34 @@ public class DoctorService implements UserDetailsService {
       return mapToDTO(doctorRepository.save(doctor));
   }
 
+  public DoctorDTO revokeStablishment(UUID doctorId, Long stablishmentId) {
+      Doctor doctor = doctorRepository.findById(doctorId)
+          .orElseThrow(() -> new RuntimeException("Doctor no encontrado"));
+      
+      com.devluis.entity.Stablishment stablishment = stablishmentRepository.findById(stablishmentId)
+          .orElseThrow(() -> new RuntimeException("Establecimiento no encontrado"));
+          
+      if (doctor.getStablishments() != null && doctor.getStablishments().contains(stablishment)) {
+          doctor.getStablishments().remove(stablishment);
+          doctorRepository.save(doctor);
+      }
+      return mapToDTO(doctor);
+  }
+
+  public DoctorDTO revokeService(UUID doctorId, Long serviceId) {
+      Doctor doctor = doctorRepository.findById(doctorId)
+          .orElseThrow(() -> new RuntimeException("Doctor no encontrado"));
+      
+      com.devluis.entity.Servicio servicio = serviceRepository.findById(serviceId)
+          .orElseThrow(() -> new RuntimeException("Servicio no encontrado"));
+          
+      if (doctor.getServices() != null && doctor.getServices().contains(servicio)) {
+          doctor.getServices().remove(servicio);
+          doctorRepository.save(doctor);
+      }
+      return mapToDTO(doctor);
+  }
+
   private Doctor mapToEntity(DoctorDTO dto) {
     return Doctor.builder()
         .email(dto.getEmail())

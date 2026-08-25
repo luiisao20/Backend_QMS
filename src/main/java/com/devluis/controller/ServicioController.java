@@ -45,6 +45,15 @@ public class ServicioController {
     return ResponseEntity.ok(servicioService.getMyServices(doctorId));
   }
 
+  @GetMapping("/my-stablishments")
+  public ResponseEntity<List<StablishmentDTO>> getMyStablishments(Authentication authentication) {
+    if (authentication == null || authentication.getName() == null) {
+      return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+    }
+    UUID doctorId = UUID.fromString(authentication.getName());
+    return ResponseEntity.ok(servicioService.getMyStablishments(doctorId));
+  }
+
   @GetMapping
   public Page<ServicioDTO> getAll(
       @RequestParam(required = false) String name,

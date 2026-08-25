@@ -19,6 +19,9 @@ public interface StablishmentRepository extends JpaRepository<Stablishment, Long
   Page<Stablishment> findByServiceIdAndName(@Param("serviceId") Long serviceId, @Param("name") String name,
       Pageable pageable);
 
+  @Query("SELECT e FROM Stablishment e JOIN e.doctors d WHERE d.uuid = :doctorId")
+  List<Stablishment> findStablishmentsByDoctorId(@Param("doctorId") java.util.UUID doctorId);
+
   // --- Metrics aggregates (MetricsController / MetricsService) -------------
   // COUNT(DISTINCT ...) over a LEFT JOIN instead of SIZE(st.doctors) /
   // SIZE(st.services): SIZE()'s exact numeric return type is less predictable

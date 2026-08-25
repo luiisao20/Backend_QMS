@@ -48,10 +48,10 @@ public class InvoiceController {
 
   private final InvoiceService invoiceService;
 
-  @PreAuthorize("hasAnyAuthority('ROLE_EMPLOYEE', 'ROLE_ADMIN')")
+  @PreAuthorize("hasAnyAuthority('ROLE_EMPLOYEE', 'ROLE_ADMIN', 'ROLE_DOCTOR')")
   @PostMapping("/api/invoices")
-  public ResponseEntity<InvoiceDTO> create(@Valid @RequestBody InvoiceDTO dto) {
-    return new ResponseEntity<>(invoiceService.create(dto), HttpStatus.CREATED);
+  public ResponseEntity<InvoiceDTO> create(@Valid @RequestBody InvoiceDTO dto, Authentication auth) {
+    return new ResponseEntity<>(invoiceService.create(dto, auth), HttpStatus.CREATED);
   }
 
   // The "finanzas/facturacion" patient self-service screen. Same "/me"

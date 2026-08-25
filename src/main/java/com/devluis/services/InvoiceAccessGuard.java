@@ -37,15 +37,23 @@ public class InvoiceAccessGuard {
     return hasAuthority(auth, ROLE_EMPLOYEE) || hasAuthority(auth, ROLE_ADMIN);
   }
 
-  public boolean isOwner(Authentication auth, UUID patientUuid) {
+  public boolean isOwner(Authentication auth, java.util.UUID patientUuid) {
     if (patientUuid == null) {
       return false;
     }
     return hasAuthority(auth, ROLE_PATIENT) && patientUuid.toString().equals(auth.getName());
   }
 
-  public void assertCanAccessInvoice(Authentication auth, UUID patientUuid) {
-    if (isStaff(auth) || isOwner(auth, patientUuid)) {
+  public boolean isIssuingDoctor(Authentication auth, com.devluis.entity.Invoice invoice) {
+    if (invoice.getDoctor() == null) {
+      return false;
+    }
+    return hasAuthority(auth, "ROLE_DOCTOR") && invoice.getDoctor().getUuid().toString().equals(auth.getName());
+  }
+
+  public void assertCanAccessInvoice(Authentication auth, com.devluis.entity.Invoice invoice) {
+    java.util.UUID patientUuid = invoice.getPatient() != null ? invoice.getPatient().getUuid() : null;
+    if (isStaff(auth) || isOwner(auth, patientUuid) || isIssuingDoctor(auth, invoice)) {
       return;
     }
     throw new RuntimeException("Error de permisos: no tienes acceso a esta factura");

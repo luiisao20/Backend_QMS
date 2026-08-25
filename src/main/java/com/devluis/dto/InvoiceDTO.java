@@ -35,6 +35,8 @@ public class InvoiceDTO {
   @NotNull(message = "El paciente es obligatorio")
   private PatientDTO patient;
 
+  private DoctorDTO doctor;
+
   @NotEmpty(message = "La factura debe tener al menos una línea")
   @Valid
   private List<InvoiceLineItemDTO> items;

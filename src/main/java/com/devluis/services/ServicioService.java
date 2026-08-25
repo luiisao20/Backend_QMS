@@ -52,6 +52,11 @@ public class ServicioService {
     return services.stream().map(this::mapToDTO).collect(Collectors.toList());
   }
 
+  public List<StablishmentDTO> getMyStablishments(UUID doctorId) {
+    List<Stablishment> stablishments = stablishmentRepository.findStablishmentsByDoctorId(doctorId);
+    return stablishments.stream().map(this::mapStablishmentToDTO).collect(Collectors.toList());
+  }
+
   public Page<ServicioDTO> getAll(String name, Pageable pageable) {
     if (name != null && !name.trim().isEmpty()) {
       return serviceRepository.findByNameContainingIgnoreCase(name.trim(), pageable)

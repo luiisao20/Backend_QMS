@@ -154,7 +154,8 @@ public class AuthService {
     // continue, same pattern as TurnService.sendTurnEmail.
     try {
       mailService.sendTestEmail(email, "Completa tu registro - Código OTP",
-          "Se ha generado tu código de verificación OTP: " + otp + ".\nPor favor ingrésalo en la plataforma para continuar con tu registro.");
+          "Se ha generado tu código de verificación OTP: " + otp
+              + ".\nPor favor ingrésalo en la plataforma para continuar con tu registro.");
     } catch (Exception e) {
       System.err.println("Error al enviar correo de OTP de registro: " + e.getMessage());
     }
@@ -187,7 +188,8 @@ public class AuthService {
 
   public AuthResult<RegistrationResult> completeRegistration(String emailAuth, PatientDTO patient) {
     if (emailAuth == null || patient.getEmail() == null || !emailAuth.equalsIgnoreCase(patient.getEmail().trim())) {
-      return AuthResult.error("El correo del formulario no coincide con el correo verificado en la sesión", HttpStatus.BAD_REQUEST);
+      return AuthResult.error("El correo del formulario no coincide con el correo verificado en la sesión",
+          HttpStatus.BAD_REQUEST);
     }
 
     if (patientRepository.findByCi(patient.getCi()).isPresent()) {
@@ -244,6 +246,7 @@ public class AuthService {
         .role(user.getRole().name())
         .firstName(user.getFirstName())
         .lastName(user.getLastName())
+        .ci(user.getCi())
         .message(message)
         .build();
   }
@@ -254,6 +257,7 @@ public class AuthService {
         .role(user.getRole().name())
         .firstName(user.getFirstName())
         .lastName(user.getLastName())
+        .ci(user.getCi())
         .message(message)
         .build();
   }
@@ -264,14 +268,15 @@ public class AuthService {
         .role(user.getRole().name())
         .firstName(user.getFirstName())
         .lastName(user.getLastName())
+        .stablishmentName(user.getStablishment() != null ? user.getStablishment().getName() : null)
         .message(message)
         .build();
   }
 
   public AuthResult<String> initPasswordRecovery(String email) {
     boolean exists = patientRepository.findByEmail(email).isPresent() ||
-                     doctorRepository.findByEmail(email).isPresent() ||
-                     operatorRepository.findByEmail(email).isPresent();
+        doctorRepository.findByEmail(email).isPresent() ||
+        operatorRepository.findByEmail(email).isPresent();
     if (!exists) {
       return AuthResult.error("No existe un usuario con ese correo", HttpStatus.NOT_FOUND);
     }
@@ -282,7 +287,7 @@ public class AuthService {
     Authentication auth = new UsernamePasswordAuthenticationToken(email, null,
         List.of(new SimpleGrantedAuthority("ROLE_OTP_PENDING")));
     String jwt = JwtProvider.generateFlashToken(auth);
-    
+
     mailService.sendTestEmail(email, "Recuperación de contraseña",
         "Tu código OTP para recuperar la contraseña es: " + otp);
 
@@ -291,10 +296,10 @@ public class AuthService {
 
   public AuthResult<String> verifyRecoveryOtp(String email, String inputOtp) {
     if (otpService.isBlocked(email)) {
-       return AuthResult.error("Has superado el límite de intentos", HttpStatus.BAD_REQUEST);
+      return AuthResult.error("Has superado el límite de intentos", HttpStatus.BAD_REQUEST);
     }
     if (!otpService.validate(email, inputOtp)) {
-       return AuthResult.error("Código OTP incorrecto o expirado", HttpStatus.BAD_REQUEST);
+      return AuthResult.error("Código OTP incorrecto o expirado", HttpStatus.BAD_REQUEST);
     }
     otpService.deleteOtp(email);
 
@@ -309,9 +314,9 @@ public class AuthService {
     if (!newPassword.equals(repeatedPassword)) {
       return AuthResult.error("Las contraseñas no coinciden", HttpStatus.BAD_REQUEST);
     }
-    
+
     String encodedPassword = patientService.getPasswordEncoder().encode(newPassword);
-    
+
     var patientOpt = patientRepository.findByEmail(email);
     if (patientOpt.isPresent()) {
       var patient = patientOpt.get();
