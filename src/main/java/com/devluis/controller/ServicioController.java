@@ -2,6 +2,7 @@ package com.devluis.controller;
 
 import com.devluis.dto.DoctorDTO;
 import com.devluis.dto.ScheduleDTO;
+import com.devluis.dto.ServiceDiscountDTO;
 import com.devluis.dto.ServicioDTO;
 import com.devluis.dto.StablishmentDTO;
 import com.devluis.services.ServicioService;
@@ -85,6 +86,15 @@ public class ServicioController {
   @PutMapping("/{id}")
   public ResponseEntity<ServicioDTO> update(@PathVariable Long id, @Valid @RequestBody ServicioDTO dto) {
     return ResponseEntity.ok(servicioService.update(id, dto));
+  }
+
+  // "precios/descuentos": a purpose-built view/edit over Servicio.discount,
+  // not a new entity — see the apply report. Narrower than the generic
+  // update() above: this screen only ever touches the discount column.
+  @PutMapping("/{id}/discount")
+  public ResponseEntity<ServicioDTO> updateDiscount(
+      @PathVariable Long id, @Valid @RequestBody ServiceDiscountDTO dto) {
+    return ResponseEntity.ok(servicioService.updateDiscount(id, dto.getDiscount()));
   }
 
   @DeleteMapping("/{id}")

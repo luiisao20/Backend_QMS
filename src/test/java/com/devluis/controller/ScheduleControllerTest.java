@@ -6,9 +6,11 @@ import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import java.time.LocalDate;
+import java.util.List;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -16,6 +18,7 @@ import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -86,5 +89,19 @@ class ScheduleControllerTest {
         isNull(), isNull(), isNull(), isNull(), any(Pageable.class));
 
     assertThat(dateCaptor.getValue()).isEqualTo(LocalDate.of(2026, 1, 15));
+  }
+
+  @Test
+  void generateFromTemplate_delegatesToService_andReturns201() throws Exception {
+    when(scheduleService.generateSchedulesFromTemplates(any())).thenReturn(List.of());
+
+    mockMvc.perform(post("/api/schedules/generate-from-template")
+            .contentType(MediaType.APPLICATION_JSON)
+            .content("""
+                {"stablishmentId":2,"serviceId":1,"from":"2026-09-07","to":"2026-09-07"}
+                """))
+        .andExpect(status().isCreated());
+
+    verify(scheduleService).generateSchedulesFromTemplates(any());
   }
 }
