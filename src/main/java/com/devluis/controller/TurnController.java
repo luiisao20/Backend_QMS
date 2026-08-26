@@ -101,9 +101,12 @@ public class TurnController {
    */
   @PreAuthorize("hasAnyAuthority('ROLE_EMPLOYEE', 'ROLE_ADMIN')")
   @PutMapping("/{id}/in-treatment")
-  public ResponseEntity<?> markAsInTreatment(@PathVariable Long id, Authentication auth) {
+  public ResponseEntity<?> markAsInTreatment(@PathVariable Long id,
+      @RequestBody(required = false) com.devluis.dto.CallTurnDTO body,
+      Authentication auth) {
     try {
-      return ResponseEntity.ok(turnService.markAsInTreatment(id, auth.getName()));
+      Long consultorioId = body == null ? null : body.getConsultorioId();
+      return ResponseEntity.ok(turnService.markAsInTreatment(id, consultorioId, auth.getName()));
     } catch (RuntimeException e) {
       return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("error", e.getMessage()));
     }

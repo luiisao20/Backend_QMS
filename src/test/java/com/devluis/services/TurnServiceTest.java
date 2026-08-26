@@ -58,12 +58,16 @@ class TurnServiceTest {
   @Mock
   private MailService mailService;
 
+  @Mock
+  private com.devluis.repository.ConsultorioRepository consultorioRepository;
+
   private TurnService turnService;
 
   @BeforeEach
   void setUp() {
     turnService = new TurnService(
-        turnRepository, patientRepository, scheduleRepository, operatorRepository, messagingTemplate, mailService);
+        turnRepository, patientRepository, scheduleRepository, operatorRepository, messagingTemplate, mailService,
+        consultorioRepository);
   }
 
   // -- fixtures --------------------------------------------------------------

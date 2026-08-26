@@ -40,4 +40,16 @@ public class TurnBoardDTO {
   private String doctorName;
 
   private String stablishmentName;
+
+  /** "B-042": prefijo del servicio + order en 3 digitos. Ver Servicio.prefix. */
+  private String ticket;
+
+  /** "03" para la columna angosta. Null si el turno se llamo sin consultorio. */
+  private String roomCode;
+
+  /** "Consultorio 3" para el panel grande. Ver ConsultorioDTO sobre por que son dos. */
+  private String roomLabel;
+
+  /** Momento del llamado. La pantalla ordena el historial por este campo. */
+  private java.time.OffsetDateTime calledAt;
 }

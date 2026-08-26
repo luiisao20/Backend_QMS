@@ -18,6 +18,9 @@ import com.devluis.entity.ScheduleTemplate;
 public interface ScheduleTemplateRepository
     extends JpaRepository<ScheduleTemplate, Long>, JpaSpecificationExecutor<ScheduleTemplate> {
 
+  /** Guarda de borrado: un consultorio asignado a una jornada no se elimina. */
+  boolean existsByConsultorioId(Long consultorioId);
+
   // Doctor-scoped overlap guard: a doctor cannot have two templates on the
   // same weekday with overlapping [startTime, endTime) windows AND
   // overlapping validity windows, regardless of establishment/service —

@@ -32,6 +32,13 @@ public class ScheduleTemplateDTO {
   // read by the service.
   private DoctorDTO doctor;
 
+  /**
+   * Consultorio por defecto de esta jornada. Opcional: las plantillas que ya
+   * existen no tienen uno, y al llamar el turno el operador puede elegirlo.
+   * Debe pertenecer a la MISMA sede de la plantilla; el service lo valida.
+   */
+  private ConsultorioDTO consultorio;
+
   @NotNull(message = "El día de la semana es obligatorio")
   private DayOfWeek dayOfWeek;
 

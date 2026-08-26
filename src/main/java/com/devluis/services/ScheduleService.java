@@ -500,6 +500,8 @@ public class ScheduleService {
             .service(servicio)
             .stablishment(stablishment)
             .status(com.devluis.types.ScheduleStatus.STATUS_FREE)
+            // Congelado aca a proposito: ver el docblock del campo en Schedule.
+            .consultorio(template.getConsultorio())
             .build();
         slots.add(schedule);
       }

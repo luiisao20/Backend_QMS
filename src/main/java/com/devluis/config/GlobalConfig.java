@@ -207,9 +207,34 @@ public class GlobalConfig {
             // AccountingController's own docblock for why.
             .requestMatchers(HttpMethod.GET, "/api/accounting/**")
             .hasAnyAuthority("ROLE_EMPLOYEE", "ROLE_ADMIN")
-            .requestMatchers("/api/turns/**", "/auth/me", "/ws-turns/**", "/api/patients/**",
+            // OJO: "/ws-turns/**" salio de esta lista a proposito. Ver el bloque
+            // publico de mas abajo. Si vuelve aca, la pantalla de sala deja de
+            // conectarse y el sintoma es una TV en "Sin conexion", no un 401
+            // visible para nadie.
+            .requestMatchers("/api/turns/**", "/auth/me", "/api/patients/**",
                 "/api/doctors/change-password", "/api/operators/change-password")
             .authenticated()
+            // ---- Pantalla de sala de espera: publica, deliberadamente ----
+            //
+            // Un televisor colgado en un hall no tiene quien se loguee. No hay
+            // teclado, no hay sesion que renovar, no hay nadie mirando a las 3
+            // de la manana cuando el token expira.
+            //
+            // Es seguro porque NINGUNO de los dos canales lleva un campo que
+            // identifique a un paciente. WaitingRoomScreenDTO y TurnBoardDTO
+            // llevan numero de turno, consultorio, especialidad y hora: lo mismo
+            // que ya se grita en voz alta en la sala.
+            //
+            // El endpoint STOMP queda abierto, no los canales privados: los de
+            // doctor y paciente viajan por convertAndSendToUser, que exige un
+            // Principal, y una conexion anonima no lo tiene. Lo unico que un
+            // anonimo puede leer es /topic/stablishment/{id}/{fecha}, que es el
+            // canal que TurnService ya documenta como anonimo.
+            //
+            // Si alguien agrega un nombre de paciente a esos DTO, lo publica en
+            // internet. La linea de defensa es el DTO, no esta regla.
+            .requestMatchers(HttpMethod.GET, "/api/sala/*/pantalla").permitAll()
+            .requestMatchers("/ws-turns/**").permitAll()
             .requestMatchers("/auth/recover-password/verify-otp").hasAuthority("ROLE_OTP_PENDING")
             .requestMatchers("/auth/recover-password/change").hasAuthority("ROLE_CHANGE_PASSWORD")
             .requestMatchers("/auth/verify-registration-otp").hasAuthority("ROLE_OTP_PENDING")
@@ -342,6 +367,18 @@ public class GlobalConfig {
             .requestMatchers(HttpMethod.POST, "/api/schedule-templates/save").hasAuthority("ROLE_ADMIN")
             .requestMatchers(HttpMethod.PUT, "/api/schedule-templates/{id}").hasAuthority("ROLE_ADMIN")
             .requestMatchers(HttpMethod.DELETE, "/api/schedule-templates/{id}").hasAuthority("ROLE_ADMIN")
+            // "consultorios": catalogo de consultorios fisicos por sede.
+            // Escrituras ROLE_ADMIN, mismo tier que el resto de catalogos.
+            // Es el requisito del negocio: el consultorio lo asigna un
+            // administrador, un ROLE_DOCTOR no puede asignarse el suyo.
+            //
+            // El GET queda authenticated (cae al anyRequest() del final) y NO
+            // publico: el operador lo necesita para elegir consultorio al
+            // llamar un turno, y el operador no es admin. La pantalla de sala
+            // no lee de aca, lee el board por su propio endpoint.
+            .requestMatchers(HttpMethod.POST, "/api/consultorios").hasAuthority("ROLE_ADMIN")
+            .requestMatchers(HttpMethod.PUT, "/api/consultorios/{id}").hasAuthority("ROLE_ADMIN")
+            .requestMatchers(HttpMethod.DELETE, "/api/consultorios/{id}").hasAuthority("ROLE_ADMIN")
             // "Bloqueo de citas" group (block-reasons, holidays, time-offs):
             // admin-managed catalogues, writes are ROLE_ADMIN only, same tier
             // as the five resources above. Reads are DELIBERATELY split:

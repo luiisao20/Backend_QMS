@@ -56,6 +56,13 @@ public class Branding {
 
   private String email;
 
+  /**
+   * Mensaje institucional del zocalo de la pantalla de sala. Cambia por
+   * campana, no por turno: por eso vive en branding y no en el board.
+   */
+  @Column(length = 500)
+  private String waitingRoomTicker;
+
   @CreationTimestamp
   @Column(columnDefinition = "timestamptz")
   private OffsetDateTime createdAt;
