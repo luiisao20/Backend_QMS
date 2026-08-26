@@ -1,0 +1,114 @@
+{
+  "$comment": "GET /api/landing/site — identidad, contacto, nav y footer; contenido estatico, cacheable",
+  "brand": {
+    "name": "CliniCore"
+  },
+  "contact": {
+    "phone": "[TELÉFONO]",
+    "emergencyPhone": "911",
+    "whatsapp": "[WHATSAPP]",
+    "email": "[CORREO]"
+  },
+  "nav": {
+    "primary": [
+      {
+        "id": "especialidades",
+        "label": "Especialidades",
+        "href": "#especialidades"
+      },
+      {
+        "id": "medicos",
+        "label": "Médicos",
+        "href": "#medicos"
+      },
+      {
+        "id": "agenda",
+        "label": "Agenda",
+        "href": "#agenda"
+      },
+      {
+        "id": "sedes",
+        "label": "Sedes",
+        "href": "#sedes"
+      }
+    ]
+  },
+  "footer": {
+    "description": "Atención ambulatoria en 4 sedes de Quito, con historia clínica compartida entre todas.",
+    "specialtyLinks": [
+      {
+        "id": "medicina-general",
+        "label": "Medicina general",
+        "href": "#especialidades"
+      },
+      {
+        "id": "pediatria",
+        "label": "Pediatría",
+        "href": "#especialidades"
+      },
+      {
+        "id": "cardiologia",
+        "label": "Cardiología",
+        "href": "#especialidades"
+      },
+      {
+        "id": "ginecologia",
+        "label": "Ginecología",
+        "href": "#especialidades"
+      },
+      {
+        "id": "odontologia",
+        "label": "Odontología",
+        "href": "#especialidades"
+      }
+    ],
+    "patientLinks": [
+      {
+        "id": "mis-citas",
+        "label": "Mis citas",
+        "href": "#"
+      },
+      {
+        "id": "mi-historia-clinica",
+        "label": "Mi historia clínica",
+        "href": "#"
+      },
+      {
+        "id": "mis-recetas",
+        "label": "Mis recetas",
+        "href": "#"
+      },
+      {
+        "id": "planes-y-convenios",
+        "label": "Planes y convenios",
+        "href": "#"
+      },
+      {
+        "id": "registro-de-accesos",
+        "label": "Registro de accesos",
+        "href": "#"
+      }
+    ],
+    "legalLinks": [
+      {
+        "id": "terminos",
+        "label": "Términos",
+        "href": "#"
+      },
+      {
+        "id": "privacidad",
+        "label": "Privacidad",
+        "href": "#"
+      },
+      {
+        "id": "consentimiento",
+        "label": "Consentimiento",
+        "href": "#"
+      }
+    ]
+  },
+  "legal": {
+    "disclaimer": "Esto no es un servicio de emergencias. Si es una emergencia, llama al 911. Urgencias en sede: [TELÉFONO]. Historia clínica tratada bajo la [LOPDP]; cada acceso queda registrado con fecha, hora y responsable, y puedes ejercer tus derechos ARCO+ escribiendo a [CORREO] (respuesta en 15 días hábiles).",
+    "copyright": "© 2026 CliniCore"
+  }
+}

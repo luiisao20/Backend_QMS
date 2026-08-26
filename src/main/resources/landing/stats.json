@@ -1,0 +1,34 @@
+{
+  "$comment": "GET /api/landing/stats — cifras de ejemplo, contenido estatico cacheable (se reemplazan por indicadores reales). Invariante: value se imprime DENTRO del anillo que percent rellena, asi que en el item con suffix \"%\" las dos cifras son la misma magnitud y tienen que ser iguales (96/96); en los otros tres el anillo es decoracion sin unidad y percent es libre.",
+  "items": [
+    {
+      "id": "anos-atendiendo",
+      "value": 24,
+      "label": "Años atendiendo",
+      "sublabel": "en [CIUDAD]",
+      "percent": 80
+    },
+    {
+      "id": "especialistas",
+      "value": 38,
+      "label": "Especialistas",
+      "sublabel": "con registro Senescyt",
+      "percent": 85
+    },
+    {
+      "id": "citas-atendidas",
+      "value": 120,
+      "label": "Mil citas atendidas",
+      "sublabel": "desde 2002",
+      "percent": 88
+    },
+    {
+      "id": "satisfaccion",
+      "value": 96,
+      "suffix": "%",
+      "label": "Satisfacción",
+      "sublabel": "encuesta 07/2026",
+      "percent": 96
+    }
+  ]
+}

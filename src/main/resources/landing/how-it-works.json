@@ -1,0 +1,30 @@
+{
+  "$comment": "GET /api/landing/how-it-works — contenido estatico, cacheable",
+  "header": {
+    "kicker": "Cómo funciona",
+    "title": "Tres pasos y estás dentro."
+  },
+  "steps": [
+    {
+      "id": "eliges-medico-y-hora",
+      "number": 1,
+      "image": "reception.jpg",
+      "title": "Eliges médico y hora",
+      "description": "Ves la agenda abierta de cada profesional en cada sede, con los cupos que ya están tomados."
+    },
+    {
+      "id": "confirmas-con-el-valor-a-la-vista",
+      "number": 2,
+      "image": "tablet.jpg",
+      "title": "Confirmas con el valor a la vista",
+      "description": "Eliges tu plan y ves cuánto te toca pagar antes de confirmar. Nunca te enteras del precio en caja."
+    },
+    {
+      "id": "llegas-a-tu-hora",
+      "number": 3,
+      "image": "waiting.jpg",
+      "title": "Llegas a tu hora",
+      "description": "Tu turno aparece en la pantalla de sala y el consultorio ya tiene tu historia abierta."
+    }
+  ]
+}

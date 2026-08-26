@@ -1,0 +1,55 @@
+{
+  "$comment": "GET /api/landing/doctors — foto, especialidad y registro son estaticos; upcomingSlots es dato vivo",
+  "header": {
+    "kicker": "Nuestros médicos",
+    "title": "Quién te va a atender.",
+    "viewAllHref": "#",
+    "totalCount": 38
+  },
+  "items": [
+    {
+      "id": "doctor-1",
+      "name": "Dr(a). [APELLIDO]",
+      "specialty": "[ESPECIALIDAD]",
+      "registrationNumber": "[_______]",
+      "image": "doctor-1.jpg",
+      "upcomingSlots": [
+        { "date": "2026-08-11", "time": "09:20" },
+        { "date": "2026-08-12", "time": "15:00" }
+      ]
+    },
+    {
+      "id": "doctor-2",
+      "name": "Dr(a). [APELLIDO]",
+      "specialty": "[ESPECIALIDAD]",
+      "registrationNumber": "[_______]",
+      "image": "doctor-2.jpg",
+      "upcomingSlots": [
+        { "date": "2026-08-11", "time": "10:40" },
+        { "date": "2026-08-13", "time": "08:30" }
+      ]
+    },
+    {
+      "id": "doctor-3",
+      "name": "Dr(a). [APELLIDO]",
+      "specialty": "[ESPECIALIDAD]",
+      "registrationNumber": "[_______]",
+      "image": "doctor-3.jpg",
+      "upcomingSlots": [
+        { "date": "2026-08-12", "time": "11:20" },
+        { "date": "2026-08-14", "time": "16:00" }
+      ]
+    },
+    {
+      "id": "doctor-4",
+      "name": "Dr(a). [APELLIDO]",
+      "specialty": "[ESPECIALIDAD]",
+      "registrationNumber": "[_______]",
+      "image": "doctor-4.jpg",
+      "upcomingSlots": [
+        { "date": "2026-08-13", "time": "09:00" },
+        { "date": "2026-08-15", "time": "10:00" }
+      ]
+    }
+  ]
+}

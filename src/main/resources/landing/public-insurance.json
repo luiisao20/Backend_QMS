@@ -1,0 +1,29 @@
+{
+  "$comment": "GET /api/landing/public-insurance — contenido estatico, cacheable",
+  "header": {
+    "kicker": "Seguros públicos",
+    "title": "Qué necesitas llevar"
+  },
+  "items": [
+    {
+      "id": "iess",
+      "name": "IESS",
+      "requirements": "[Documentos que pide la clínica: cédula, certificado de aportaciones, derivación, etc.]"
+    },
+    {
+      "id": "issfa",
+      "name": "ISSFA",
+      "requirements": "[Documentos que pide la clínica.]"
+    },
+    {
+      "id": "isspol",
+      "name": "ISSPOL",
+      "requirements": "[Documentos que pide la clínica.]"
+    },
+    {
+      "id": "msp",
+      "name": "MSP",
+      "requirements": "[Documentos que pide la clínica.]"
+    }
+  ]
+}

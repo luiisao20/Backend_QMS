@@ -1,0 +1,24 @@
+{
+  "$comment": "GET /api/landing/coverage — precios de ejemplo del CTA de cierre; conviene servirlo junto a booking-availability para consistencia",
+  "header": {
+    "kicker": "Agenda en línea",
+    "title": "Tu próxima cita está a un minuto de distancia.",
+    "lead": "Eliges especialidad, médico y hora. Ves el valor de tu plan antes de confirmar y la confirmación llega al instante."
+  },
+  "backgroundImage": "pediatric.jpg",
+  "ctas": {
+    "primary": { "label": "Agenda tu cita", "href": "#agenda" },
+    "phone": { "label": "[TELÉFONO]", "href": "tel:" }
+  },
+  "panelTitle": "Cobertura",
+  "rows": [
+    { "id": "aseguradora-1", "label": "[ASEGURADORA 1]", "price": { "amount": 12, "currency": "USD" } },
+    { "id": "aseguradora-2", "label": "[ASEGURADORA 2]", "price": { "amount": 12, "currency": "USD" } },
+    { "id": "aseguradora-3", "label": "[ASEGURADORA 3]", "price": { "amount": 12, "currency": "USD" } }
+  ],
+  "noPlanRow": {
+    "label": "Sin plan",
+    "price": { "amount": 30, "currency": "USD" }
+  },
+  "note": "El valor se muestra antes de confirmar."
+}
