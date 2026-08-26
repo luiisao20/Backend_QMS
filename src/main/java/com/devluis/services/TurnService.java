@@ -46,6 +46,7 @@ public class TurnService {
   private final com.devluis.repository.OperatorRepository operatorRepository;
   private final org.springframework.messaging.simp.SimpMessagingTemplate messagingTemplate;
   private final MailService mailService;
+  private final com.devluis.repository.ConsultorioRepository consultorioRepository;
 
   @Transactional
   public TurnDTO create(TurnDTO dto, String authName) {
@@ -267,13 +268,32 @@ public class TurnService {
   }
 
   // Start attention: the doctor/counter calls the patient in from the waiting room.
+  /**
+   * Sobrecarga historica: llamar sin elegir consultorio usa el del cupo.
+   * Existe para no romper a los llamadores previos a que el consultorio
+   * existiera; el camino real de la UI pasa el consultorioId.
+   */
   public TurnDTO markAsInTreatment(Long turnId, String staffAuthName) {
+    return markAsInTreatment(turnId, null, staffAuthName);
+  }
+
+  /**
+   * El llamado: WAITNG -> IN_TREATMENT, con el consultorio por el que sale.
+   *
+   * consultorioId null NO significa "sin consultorio": significa "el que ya
+   * traia el cupo", que a su vez viene de la plantilla que definio un admin.
+   * El operador solo tiene que intervenir cuando el medico se mudo.
+   */
+  public TurnDTO markAsInTreatment(Long turnId, Long consultorioId, String staffAuthName) {
     Turn turn = turnRepository.findById(turnId)
         .orElseThrow(() -> new RuntimeException("Turno no encontrado"));
 
     if (turn.getStatus() != TurnStatus.TURN_WAITNG) {
       throw new RuntimeException("Solo se puede iniciar la atención de un turno que está en sala de espera");
     }
+
+    turn.setConsultorio(resolveConsultorioForCall(turn, consultorioId));
+    turn.setCalledAt(java.time.OffsetDateTime.now());
 
     try {
       operatorRepository.findById(UUID.fromString(staffAuthName)).ifPresent(turn::setOperator);
@@ -649,6 +669,14 @@ public class TurnService {
       }
     }
 
+    String prefix = schedule != null && schedule.getService() != null
+        ? schedule.getService().getPrefix()
+        : null;
+
+    // El consultorio EFECTIVO del llamado sale del turno, no del cupo: el
+    // operador pudo cambiarlo porque el medico se mudo hoy.
+    com.devluis.entity.Consultorio consultorio = entity.getConsultorio();
+
     return TurnBoardDTO.builder()
         .id(entity.getId())
         .order(entity.getOrder())
@@ -657,7 +685,38 @@ public class TurnService {
         .serviceName(serviceName)
         .doctorName(doctorName)
         .stablishmentName(stablishmentName)
+        .ticket(com.devluis.utils.Ticket.format(prefix, entity.getOrder()))
+        .roomCode(consultorio != null ? consultorio.getCode() : null)
+        .roomLabel(consultorio != null ? consultorio.getLabel() : null)
+        .calledAt(entity.getCalledAt())
         .build();
+  }
+
+  /**
+   * Sin id explicito devuelve el consultorio del cupo. Con id, valida que sea
+   * de la MISMA sede del cupo: si no, la pantalla mandaria al paciente a una
+   * puerta que no existe en ese edificio.
+   */
+  private com.devluis.entity.Consultorio resolveConsultorioForCall(Turn turn, Long consultorioId) {
+    Schedule schedule = turn.getSchedule();
+
+    if (consultorioId == null) {
+      return schedule != null ? schedule.getConsultorio() : null;
+    }
+
+    com.devluis.entity.Consultorio consultorio = consultorioRepository.findById(consultorioId)
+        .orElseThrow(() -> new RuntimeException("Consultorio no encontrado"));
+
+    if (schedule != null && schedule.getStablishment() != null) {
+      Long sedeDelCupo = schedule.getStablishment().getId();
+      if (consultorio.getStablishment() == null
+          || !consultorio.getStablishment().getId().equals(sedeDelCupo)) {
+        throw new RuntimeException(
+            "El consultorio seleccionado no pertenece al establecimiento de este turno");
+      }
+    }
+
+    return consultorio;
   }
 
   private void broadcastTurnUpdate(Turn turn, TurnDTO turnDTO) {

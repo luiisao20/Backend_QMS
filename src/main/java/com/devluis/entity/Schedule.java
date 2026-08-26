@@ -58,6 +58,20 @@ public class Schedule {
   @JoinColumn(name = "stablishment_id")
   private Stablishment stablishment;
 
+  /**
+   * Consultorio del cupo, COPIADO de la plantilla al generarlo, no leido de
+   * ella en vivo.
+   *
+   * La copia es el punto: una plantilla se edita y se borra. Si el cupo leyera
+   * la plantilla al vuelo, cambiar el horario del lunes que viene reescribiria
+   * en que consultorio se atendio a un paciente el mes pasado. Mismo criterio
+   * que InvoiceLineItem.sourceId, que es un Long pelado justamente para que una
+   * factura emitida no pueda alcanzar el catalogo vivo.
+   */
+  @ManyToOne(fetch = FetchType.LAZY)
+  @JoinColumn(name = "consultorio_id")
+  private Consultorio consultorio;
+
   @CreationTimestamp
   @Column(columnDefinition = "timestamptz")
   private OffsetDateTime createdAt;

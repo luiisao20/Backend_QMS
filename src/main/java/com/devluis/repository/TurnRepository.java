@@ -19,6 +19,29 @@ import org.springframework.data.repository.query.Param;
 
 public interface TurnRepository extends JpaRepository<Turn, Long>, JpaSpecificationExecutor<Turn> {
 
+  /**
+   * Los turnos YA LLAMADOS de una sede en una fecha, del mas reciente al mas
+   * viejo. Alimenta la pantalla de sala.
+   *
+   * Ordena por calledAt y NO por createdAt: createdAt es cuando se reservo el
+   * turno, que puede ser de hace una semana y no dice nada sobre el orden en
+   * que se llamo a la gente hoy.
+   *
+   * calledAt IS NOT NULL es el filtro real de "ya se llamo": el status no
+   * alcanza porque un turno atendido y uno en atencion son ambos llamados, y
+   * un turno cancelado pudo haberse llamado antes de cancelarse.
+   *
+   * SIN VERIFICAR contra Postgres, igual que el resto de las JPQL del proyecto.
+   */
+  @Query("SELECT t FROM Turn t "
+      + "JOIN t.schedule s "
+      + "WHERE s.stablishment.id = :stablishmentId "
+      + "AND s.date = :date "
+      + "AND t.calledAt IS NOT NULL "
+      + "ORDER BY t.calledAt DESC")
+  List<Turn> findCalledForBoard(@Param("stablishmentId") Long stablishmentId,
+      @Param("date") java.time.LocalDate date);
+
   @Query("SELECT COUNT(t) FROM Turn t WHERE t.schedule.service.id = :serviceId AND t.schedule.date = :date")
   Long countTurnsByServiceAndDate(@Param("serviceId") Long serviceId, @Param("date") LocalDate date);
 

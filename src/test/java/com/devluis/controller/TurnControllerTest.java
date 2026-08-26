@@ -3,6 +3,7 @@ package com.devluis.controller;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
@@ -98,7 +99,7 @@ class TurnControllerTest {
   @Test
   void markAsInTreatment_returnsOk_whenServiceAcceptsTheTransition() throws Exception {
     TurnDTO dto = TurnDTO.builder().id(1L).status(TurnStatus.TURN_IN_TREATMENT).build();
-    when(turnService.markAsInTreatment(eq(1L), anyString())).thenReturn(dto);
+    when(turnService.markAsInTreatment(eq(1L), isNull(), anyString())).thenReturn(dto);
 
     mockMvc.perform(put("/api/turns/{id}/in-treatment", 1L).principal(staffAuth()))
         .andExpect(status().isOk())
@@ -107,11 +108,29 @@ class TurnControllerTest {
 
   @Test
   void markAsInTreatment_returns400WithSpanishError_whenTransitionIsIllegal() throws Exception {
-    when(turnService.markAsInTreatment(eq(1L), anyString()))
+    when(turnService.markAsInTreatment(eq(1L), isNull(), anyString()))
         .thenThrow(new RuntimeException("Solo se puede iniciar la atención de un turno que está en sala de espera"));
 
     mockMvc.perform(put("/api/turns/{id}/in-treatment", 1L).principal(staffAuth()))
         .andExpect(status().isBadRequest())
         .andExpect(jsonPath("$.error").value("Solo se puede iniciar la atención de un turno que está en sala de espera"));
+  }
+
+  /**
+   * El camino real de la UI: el operador elige consultorio y ese id tiene que
+   * llegar al service. Sin este test, el controller podria descartarlo en
+   * silencio y los otros dos casos seguirian en verde.
+   */
+  @Test
+  void markAsInTreatment_forwardsTheConsultorioId_whenTheBodyCarriesOne() throws Exception {
+    TurnDTO dto = TurnDTO.builder().id(1L).status(TurnStatus.TURN_IN_TREATMENT).build();
+    when(turnService.markAsInTreatment(eq(1L), eq(77L), anyString())).thenReturn(dto);
+
+    mockMvc.perform(put("/api/turns/{id}/in-treatment", 1L)
+        .principal(staffAuth())
+        .contentType(MediaType.APPLICATION_JSON)
+        .content("{\"consultorioId\":77}"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.status").value("TURN_IN_TREATMENT"));
   }
 }

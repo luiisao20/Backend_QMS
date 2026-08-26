@@ -117,6 +117,24 @@ public class ScheduleTemplate {
   @JoinColumn(name = "doctor_id")
   private Doctor doctor;
 
+  /**
+   * El consultorio por defecto de esta jornada. Lo asigna un ROLE_ADMIN: las
+   * escrituras de esta entidad ya estan cerradas a ROLE_ADMIN en GlobalConfig,
+   * asi que el medico no puede asignarse el suyo ni por API.
+   *
+   * Vive aca y no en Doctor porque hacen falta TRES datos para que la frase
+   * cierre: medico + servicio + SEDE. `Doctor.stablishments` es @ManyToMany,
+   * y "Consultorio 3" solo significa algo dentro de una sede. Esta plantilla
+   * ya tiene los tres, mas el dia y el horario, asi que el mismo medico
+   * puede estar en el 3 los lunes y en el 5 los miercoles.
+   *
+   * NULLABLE: las plantillas que ya existen no tienen consultorio y siguen
+   * siendo validas. Al llamar un turno el operador puede elegirlo igual.
+   */
+  @ManyToOne(fetch = FetchType.LAZY)
+  @JoinColumn(name = "consultorio_id")
+  private Consultorio consultorio;
+
   @Enumerated(EnumType.STRING)
   @Column(nullable = false)
   private DayOfWeek dayOfWeek;

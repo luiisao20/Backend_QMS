@@ -13,10 +13,12 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 
 import com.devluis.dto.DoctorDTO;
+import com.devluis.dto.ConsultorioDTO;
 import com.devluis.dto.ScheduleTemplateDTO;
 import com.devluis.dto.ServicioDTO;
 import com.devluis.dto.StablishmentDTO;
 import com.devluis.entity.Doctor;
+import com.devluis.entity.Consultorio;
 import com.devluis.entity.ScheduleTemplate;
 import com.devluis.entity.Servicio;
 import com.devluis.entity.Stablishment;
@@ -36,6 +38,7 @@ public class ScheduleTemplateService {
   private final ServiceRepository serviceRepository;
   private final DoctorRepository doctorRepository;
   private final com.devluis.repository.ScheduleRepository scheduleRepository;
+  private final com.devluis.repository.ConsultorioRepository consultorioRepository;
 
   public ScheduleTemplateDTO create(ScheduleTemplateDTO dto) {
     Stablishment stablishment = resolveStablishment(dto);
@@ -48,10 +51,13 @@ public class ScheduleTemplateService {
     rejectIfOverlapping(stablishment, servicio, doctor, dto.getDayOfWeek(), dto.getStartTime(), dto.getEndTime(),
         dto.getValidFrom(), dto.getValidUntil(), null);
 
+    Consultorio consultorio = resolveConsultorio(dto, stablishment);
+
     ScheduleTemplate template = ScheduleTemplate.builder()
         .stablishment(stablishment)
         .servicio(servicio)
         .doctor(doctor)
+        .consultorio(consultorio)
         .dayOfWeek(dto.getDayOfWeek())
         .startTime(dto.getStartTime())
         .endTime(dto.getEndTime())
@@ -128,6 +134,8 @@ public class ScheduleTemplateService {
     template.setValidFrom(dto.getValidFrom());
     template.setValidUntil(dto.getValidUntil());
 
+    template.setConsultorio(resolveConsultorio(dto, stablishment));
+
     ScheduleTemplate updated = scheduleTemplateRepository.save(template);
     return mapToDTO(updated);
   }
@@ -200,6 +208,31 @@ public class ScheduleTemplateService {
     }
   }
 
+  /**
+   * Resuelve el consultorio y verifica que sea de la MISMA sede de la
+   * plantilla. Sin esta guarda un admin puede asignar el Consultorio 3 de la
+   * Matriz a una jornada de la Norte, y la pantalla de la Norte mandaria al
+   * paciente a una puerta que no existe en ese edificio.
+   *
+   * Devuelve null cuando el DTO no trae consultorio: es opcional a proposito.
+   */
+  private Consultorio resolveConsultorio(ScheduleTemplateDTO dto, Stablishment stablishment) {
+    if (dto.getConsultorio() == null || dto.getConsultorio().getId() == null) {
+      return null;
+    }
+
+    Consultorio consultorio = consultorioRepository.findById(dto.getConsultorio().getId())
+        .orElseThrow(() -> new RuntimeException("Consultorio no encontrado"));
+
+    if (consultorio.getStablishment() == null
+        || !consultorio.getStablishment().getId().equals(stablishment.getId())) {
+      throw new RuntimeException(
+          "El consultorio seleccionado no pertenece a este establecimiento");
+    }
+
+    return consultorio;
+  }
+
   private void validateDoctorAssignments(Stablishment stablishment, Servicio servicio, Doctor doctor) {
     if (doctor == null) {
       return;
@@ -244,6 +277,16 @@ public class ScheduleTemplateService {
   }
 
   private ScheduleTemplateDTO mapToDTO(ScheduleTemplate entity) {
+    ConsultorioDTO consultorioDTO = null;
+    if (entity.getConsultorio() != null) {
+      consultorioDTO = ConsultorioDTO.builder()
+          .id(entity.getConsultorio().getId())
+          .code(entity.getConsultorio().getCode())
+          .label(entity.getConsultorio().getLabel())
+          .active(entity.getConsultorio().getActive())
+          .build();
+    }
+
     StablishmentDTO stablishmentDTO = null;
     if (entity.getStablishment() != null) {
       stablishmentDTO = StablishmentDTO.builder()
@@ -272,6 +315,7 @@ public class ScheduleTemplateService {
     }
 
     return ScheduleTemplateDTO.builder()
+        .consultorio(consultorioDTO)
         .id(entity.getId())
         .stablishment(stablishmentDTO)
         .servicio(servicioDTO)
