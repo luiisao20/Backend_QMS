@@ -216,13 +216,6 @@ public class TurnService {
     Turn turn = turnRepository.findById(turnId)
         .orElseThrow(() -> new RuntimeException("Turno no encontrado"));
 
-    // Design decision: TURN_PENDING is deliberately still accepted as a
-    // source state. Before markAsWaiting/markAsInTreatment existed, every
-    // turn in the system went straight from PENDING to TREATED, so rejecting
-    // PENDING here would break every turn that has not gone through the new
-    // queue steps (and any establishment that chooses to skip them). Only
-    // the terminal states are rejected, to stop double-treating a turn or
-    // reviving one that was already cancelled.
     if (turn.getStatus() == TurnStatus.TURN_TREATED || turn.getStatus() == TurnStatus.TURN_CANCELLED) {
       throw new RuntimeException("No se puede marcar como atendido un turno que ya fue atendido o cancelado");
     }
@@ -236,7 +229,27 @@ public class TurnService {
       throw new RuntimeException("Error de permisos: Este turno no te pertenece");
     }
 
-    turn.setStatus(com.devluis.types.TurnStatus.TURN_TREATED);
+    turn.setStatus(TurnStatus.TURN_TREATED);
+
+    Turn updated = turnRepository.save(turn);
+    TurnDTO updatedDTO = mapToDTO(updated);
+    broadcastTurnUpdate(updated, updatedDTO);
+    return updatedDTO;
+  }
+
+public TurnDTO markAsTreatedAdmin(Long turnId) {
+    Turn turn = turnRepository.findById(turnId)
+        .orElseThrow(() -> new RuntimeException("Turno no encontrado"));
+
+    if (turn.getStatus() == TurnStatus.TURN_TREATED || turn.getStatus() == TurnStatus.TURN_CANCELLED) {
+      throw new RuntimeException("No se puede marcar como atendido un turno que ya fue atendido o cancelado");
+    }
+
+    if (turn.getSchedule() == null || turn.getSchedule().getDoctor() == null) {
+      throw new RuntimeException("El turno no tiene un doctor asignado");
+    }
+
+    turn.setStatus(TurnStatus.TURN_TREATED);
 
     Turn updated = turnRepository.save(turn);
     TurnDTO updatedDTO = mapToDTO(updated);
@@ -267,7 +280,6 @@ public class TurnService {
     return updatedDTO;
   }
 
-  // Start attention: the doctor/counter calls the patient in from the waiting room.
   /**
    * Sobrecarga historica: llamar sin elegir consultorio usa el del cupo.
    * Existe para no romper a los llamadores previos a que el consultorio
