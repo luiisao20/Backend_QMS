@@ -124,6 +124,18 @@ public class TurnController {
     }
   }
 
+  @PutMapping("/{id}/treated/admin")
+  public ResponseEntity<?> markAsTreatedAdmin(@PathVariable Long id) {
+    try {
+      return ResponseEntity.ok(turnService.markAsTreatedAdmin(id));
+    } catch (RuntimeException e) {
+      if (e.getMessage().contains("permisos")) {
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of("error", e.getMessage()));
+      }
+      return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("error", e.getMessage()));
+    }
+  }
+
   @PutMapping("/{id}/cancelled")
   public ResponseEntity<?> cancelTurn(@PathVariable Long id, Authentication auth) {
     try {
