@@ -234,6 +234,13 @@ public class GlobalConfig {
             // Si alguien agrega un nombre de paciente a esos DTO, lo publica en
             // internet. La linea de defensa es el DTO, no esta regla.
             .requestMatchers(HttpMethod.GET, "/api/sala/*/pantalla").permitAll()
+            // Landing publica: es la portada de una clinica, el visitante no
+            // tiene sesion. Ninguna seccion expone dato de paciente: son la
+            // marca, las sedes, los servicios, los medicos y cupos LIBRES.
+            //
+            // La seccion se valida contra lista blanca en LandingService, asi
+            // que este comodin no abre lecturas arbitrarias del classpath.
+            .requestMatchers(HttpMethod.GET, "/api/landing/**").permitAll()
             .requestMatchers("/ws-turns/**").permitAll()
             .requestMatchers("/auth/recover-password/verify-otp").hasAuthority("ROLE_OTP_PENDING")
             .requestMatchers("/auth/recover-password/change").hasAuthority("ROLE_CHANGE_PASSWORD")

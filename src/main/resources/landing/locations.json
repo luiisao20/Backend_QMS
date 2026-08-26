@@ -1,0 +1,26 @@
+{
+  "$comment": "GET /api/landing/locations — contenido estatico, cacheable. items son las 2 sedes de contacto que enumera el pie de pagina, tal como las fija design/Main.dc.html; la cifra 4 sedes del hero, del pie y de specialties.json es de clinica completa y no es el largo de este arreglo. Si items crece, hay que subir a la par la cuenta fija del skeleton en locations-section.",
+  "header": {
+    "kicker": "Nuestras instalaciones",
+    "title": "Dónde te vamos a atender."
+  },
+  "gallery": ["reception.jpg", "waiting.jpg", "consulting.jpg", "treatment.jpg", "pharmacy.jpg"],
+  "items": [
+    {
+      "id": "sede-1",
+      "name": "Sede [NOMBRE]",
+      "address": "[DIRECCIÓN], [CIUDAD]",
+      "phone": "[TELÉFONO]",
+      "schedule": "[HORARIO]",
+      "emergencyService": "[ATIENDE / NO ATIENDE] emergencias"
+    },
+    {
+      "id": "sede-2",
+      "name": "Sede [NOMBRE]",
+      "address": "[DIRECCIÓN], [CIUDAD]",
+      "phone": "[TELÉFONO]",
+      "schedule": "[HORARIO]",
+      "emergencyService": "[ATIENDE / NO ATIENDE] emergencias"
+    }
+  ]
+}

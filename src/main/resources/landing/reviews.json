@@ -1,0 +1,44 @@
+{
+  "$comment": "GET /api/landing/reviews — estatico si se cura a mano, o dato vivo si se sincroniza con Google",
+  "aggregate": {
+    "source": "Google",
+    "rating": 4.8,
+    "totalCount": 229
+  },
+  "items": [
+    {
+      "id": "review-1",
+      "rating": 5,
+      "text": "[Reseña real de un paciente: dos o tres líneas sobre cómo reservó, cuánto esperó y cómo lo atendieron.]",
+      "authorName": "[NOMBRE]",
+      "authorContext": "[ESPECIALIDAD]",
+      "date": "2026-07",
+      "avatar": "doctor-3.jpg"
+    },
+    {
+      "id": "review-2",
+      "rating": 5,
+      "text": "[Segunda reseña real. Conviene una que mencione la espera y el trato del personal.]",
+      "authorName": "[NOMBRE]",
+      "authorContext": "[ESPECIALIDAD]",
+      "date": "2026-07",
+      "avatar": "doctor-2.jpg"
+    },
+    {
+      "id": "review-3",
+      "rating": 5,
+      "text": "[Tercera reseña real. Idealmente una que hable de la receta digital o del historial compartido.]",
+      "authorName": "[NOMBRE]",
+      "authorContext": "[ESPECIALIDAD]",
+      "date": "2026-07",
+      "avatar": "doctor-1.jpg"
+    }
+  ],
+  "quotes": [
+    { "id": "quote-1", "text": "[cita breve de una reseña]" },
+    { "id": "quote-2", "text": "[cita breve de una reseña]" },
+    { "id": "quote-3", "text": "[cita breve de una reseña]" },
+    { "id": "quote-4", "text": "[cita breve de una reseña]" },
+    { "id": "quote-5", "text": "[cita breve de una reseña]" }
+  ]
+}

@@ -1,0 +1,34 @@
+{
+  "$comment": "GET /api/landing/faq — contenido estatico, cacheable",
+  "header": {
+    "kicker": "Preguntas frecuentes",
+    "title": "Antes de agendar."
+  },
+  "items": [
+    {
+      "id": "necesito-ser-paciente",
+      "question": "¿Necesito ser paciente de la clínica para agendar?",
+      "answer": "No. Agendas con tu cédula y tus datos básicos. La historia clínica se crea en tu primera consulta y desde ahí queda disponible en todas nuestras sedes."
+    },
+    {
+      "id": "cambiar-o-cancelar",
+      "question": "¿Puedo cambiar o cancelar mi cita?",
+      "answer": "Sí, desde tu perfil hasta 24 horas antes, sin llamar. Pasado ese plazo escríbenos al [WHATSAPP] para que el cupo se libere a tiempo."
+    },
+    {
+      "id": "llego-tarde",
+      "question": "¿Qué pasa si llego tarde?",
+      "answer": "Hay una tolerancia de 15 minutos. Pasado ese tiempo el cupo se reasigna y te ofrecemos el siguiente espacio libre del día."
+    },
+    {
+      "id": "recetas-y-estudios",
+      "question": "¿Dónde veo mis recetas y mis estudios?",
+      "answer": "En tu perfil, dentro de Historia. Las recetas quedan disponibles para farmacia el mismo día de la consulta y los resultados se suman en cuanto el laboratorio los carga."
+    },
+    {
+      "id": "iess-y-aseguradoras",
+      "question": "¿Trabajan con IESS y aseguradoras?",
+      "answer": "Trabajamos con [LISTA DE ASEGURADORAS] y con [IESS / ISSFA / ISSPOL / MSP]. Los requisitos de documentos los confirma administración."
+    }
+  ]
+}

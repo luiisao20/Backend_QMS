@@ -1,0 +1,108 @@
+{
+  "$comment": "GET /api/landing/specialties — contenido estatico, cacheable",
+  "header": {
+    "kicker": "Especialidades",
+    "title": "¿Qué necesitas atender hoy?"
+  },
+  "groups": [
+    {
+      "id": "consulta",
+      "label": "Consulta",
+      "specialties": [
+        {
+          "id": "pediatria",
+          "name": "Pediatría",
+          "description": "Control de niño sano, vacunas y consulta por síntomas. La agenda reserva bloques más largos para primeras consultas.",
+          "image": "pediatric.jpg",
+          "doctorCount": 6,
+          "priceFrom": { "amount": 40, "currency": "USD" },
+          "tags": []
+        },
+        {
+          "id": "medicina-general",
+          "name": "Medicina general",
+          "description": "El primer punto de contacto: se revisa el cuadro completo, se piden exámenes y se te deriva con la historia ya cargada.",
+          "image": "tablet.jpg",
+          "doctorCount": 9,
+          "priceFrom": { "amount": 30, "currency": "USD" },
+          "tags": []
+        },
+        {
+          "id": "cardiologia",
+          "name": "Cardiología",
+          "description": "Chequeo de presión, electrocardiograma y seguimiento. Los estudios quedan comparables visita a visita.",
+          "image": "vitals.jpg",
+          "doctorCount": 4,
+          "priceFrom": { "amount": 40, "currency": "USD" },
+          "tags": []
+        }
+      ]
+    },
+    {
+      "id": "control",
+      "label": "Control",
+      "specialties": [
+        {
+          "id": "control-anual",
+          "name": "Control anual",
+          "description": "Chequeo completo con laboratorio el mismo día. Sales con los resultados cargados en tu historia.",
+          "image": "consulting.jpg",
+          "doctorCount": null,
+          "priceFrom": null,
+          "tags": ["bloque 60 min"]
+        },
+        {
+          "id": "control-de-tratamiento",
+          "name": "Control de tratamiento",
+          "description": "Seguimiento con la receta a la vista. Farmacia ve la indicación el mismo día de la consulta.",
+          "image": "pharmacy.jpg",
+          "doctorCount": null,
+          "priceFrom": null,
+          "tags": ["receta digital"]
+        },
+        {
+          "id": "sesiones",
+          "name": "Sesiones",
+          "description": "Cuando el tratamiento necesita varias visitas, quedan agendadas todas juntas desde la primera cita.",
+          "image": "treatment.jpg",
+          "doctorCount": null,
+          "priceFrom": null,
+          "tags": ["paquetes"]
+        }
+      ]
+    },
+    {
+      "id": "telemedicina",
+      "label": "Telemedicina",
+      "specialties": [
+        {
+          "id": "videoconsulta",
+          "name": "Videoconsulta",
+          "description": "Para controles y resultados que no necesitan examen físico. El médico ve tu historia completa en pantalla.",
+          "image": "tablet.jpg",
+          "doctorCount": null,
+          "priceFrom": null,
+          "tags": ["20 min"]
+        },
+        {
+          "id": "receta-a-distancia",
+          "name": "Receta a distancia",
+          "description": "La indicación queda en el sistema y la retiras en farmacia con tu número, sin volver a la consulta.",
+          "image": "pharmacy.jpg",
+          "doctorCount": null,
+          "priceFrom": null,
+          "tags": ["mismo día"]
+        },
+        {
+          "id": "derivacion-a-sede",
+          "name": "Derivación a sede",
+          "description": "Si la videoconsulta necesita examen, el médico te agenda presencial en la sede más cercana.",
+          "image": "reception.jpg",
+          "doctorCount": null,
+          "priceFrom": null,
+          "tags": ["4 sedes"]
+        }
+      ]
+    }
+  ]
+}

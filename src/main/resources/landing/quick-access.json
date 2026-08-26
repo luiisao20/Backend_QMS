@@ -1,0 +1,33 @@
+{
+  "$comment": "GET /api/landing/quick-access — contenido estatico, cacheable",
+  "items": [
+    {
+      "id": "agenda-tu-cita",
+      "title": "Agenda tu cita",
+      "subtitle": "En línea, sin llamar",
+      "href": "#agenda",
+      "tone": "default"
+    },
+    {
+      "id": "mi-historia-clinica",
+      "title": "Mi historia clínica",
+      "subtitle": "Consultas, estudios y recetas",
+      "href": "#",
+      "tone": "default"
+    },
+    {
+      "id": "resultados-y-receta",
+      "title": "Resultados y receta",
+      "subtitle": "Listos para farmacia",
+      "href": "#",
+      "tone": "default"
+    },
+    {
+      "id": "emergencia",
+      "title": "Emergencia 24/7",
+      "subtitle": "911",
+      "href": "tel:",
+      "tone": "emergency"
+    }
+  ]
+}
