@@ -1,6 +1,6 @@
 {
   "$comment": "GET /api/landing/hero — kicker, titular y pildoras son estaticos; availability es dato vivo (cupos reales del dia). availability.count es el agregado de cupos abiertos de esa especialidad en esa sede para todo el dia; NO se deriva de booking-availability.json, que son las horas de un solo medico (12 en total, 8 libres). Las pildoras 18 especialidades y 4 sedes son cifras de clinica completa tomadas de los tableros de diseno aprobados, no recuentos de specialties.json ni de locations.json.",
-  "kicker": "Turnos en línea · [CIUDAD]",
+  "kicker": "Turnos en línea · Ecuador",
   "title": "Tu cita con hora exacta, sin sala de espera.",
   "lead": "Reservas contra la agenda real de cada médico y ves el valor de tu plan antes de confirmar. Tu historia clínica te acompaña entre nuestras sedes.",
   "trustPills": [
@@ -11,7 +11,7 @@
   ],
   "ctas": {
     "primary": { "label": "Agenda tu cita", "href": "#agenda" },
-    "whatsapp": { "label": "Escríbenos por WhatsApp", "href": "#" }
+    "contact": { "label": "Contáctanos", "href": "#" }
   },
   "images": {
     "background": "hero.jpg",
@@ -22,6 +22,6 @@
     "count": 12,
     "unit": "cupos",
     "specialty": "Medicina general",
-    "location": "Sede [NOMBRE]"
+    "location": "Sede Norte"
   }
 }

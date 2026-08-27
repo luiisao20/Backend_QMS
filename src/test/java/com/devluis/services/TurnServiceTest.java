@@ -12,6 +12,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.Optional;
 import java.util.UUID;
@@ -97,11 +98,25 @@ class TurnServiceTest {
         .build();
   }
 
+  /**
+   * A slot a WEEK from today, never a fixed calendar date.
+   *
+   * create() refuses a slot whose start time has already passed, so every
+   * booking fixture has to be in the future to exercise anything past that
+   * guard. A hardcoded date satisfies that only until the date arrives: this
+   * fixture used to read LocalDate.of(2026, 9, 1), which would have turned
+   * every create() test in this file red on that morning, for a reason none
+   * of them are about.
+   */
   private Schedule buildSchedule(Long id, Doctor doctor, Servicio service, Stablishment stablishment, ScheduleStatus status) {
+    return buildScheduleAt(id, LocalDate.now().plusDays(7), LocalTime.of(9, 0), doctor, service, stablishment, status);
+  }
+
+  private Schedule buildScheduleAt(Long id, LocalDate date, LocalTime hour, Doctor doctor, Servicio service, Stablishment stablishment, ScheduleStatus status) {
     return Schedule.builder()
         .id(id)
-        .date(LocalDate.of(2026, 9, 1))
-        .hour(LocalTime.of(9, 0))
+        .date(date)
+        .hour(hour)
         .status(status)
         .doctor(doctor)
         .service(service)
@@ -128,6 +143,90 @@ class TurnServiceTest {
         .patient(patient)
         .schedule(schedule)
         .build();
+  }
+
+  // -- create: a slot that has already started is not bookable ---------------
+  //
+  // The clock is a PARAMETER of requireUpcoming rather than a LocalDateTime.now()
+  // read inside it, which is what lets these assert the minute-level boundary
+  // instead of approximating it with "yesterday" and "tomorrow". The two tests
+  // that DO go through create() cover the wiring; these cover the rule.
+
+  @Test
+  void requireUpcoming_rejects_whenTheHourAlreadyPassedToday() {
+    LocalDateTime now = LocalDateTime.of(2026, 8, 26, 11, 0);
+    Schedule schedule = buildScheduleAt(1L, LocalDate.of(2026, 8, 26), LocalTime.of(8, 0),
+        buildDoctor(UUID.randomUUID()), buildService(1L), buildStablishment(1L), ScheduleStatus.STATUS_FREE);
+
+    assertThatThrownBy(() -> TurnService.requireUpcoming(schedule, now))
+        .isInstanceOf(RuntimeException.class)
+        .hasMessageContaining("ya paso");
+  }
+
+  @Test
+  void requireUpcoming_rejects_whenTheSlotStartsExactlyNow() {
+    LocalDateTime now = LocalDateTime.of(2026, 8, 26, 11, 0);
+    Schedule schedule = buildScheduleAt(1L, LocalDate.of(2026, 8, 26), LocalTime.of(11, 0),
+        buildDoctor(UUID.randomUUID()), buildService(1L), buildStablishment(1L), ScheduleStatus.STATUS_FREE);
+
+    assertThatThrownBy(() -> TurnService.requireUpcoming(schedule, now))
+        .isInstanceOf(RuntimeException.class);
+  }
+
+  @Test
+  void requireUpcoming_accepts_whenTheHourIsStillAheadToday() {
+    LocalDateTime now = LocalDateTime.of(2026, 8, 26, 11, 0);
+    Schedule schedule = buildScheduleAt(1L, LocalDate.of(2026, 8, 26), LocalTime.of(11, 20),
+        buildDoctor(UUID.randomUUID()), buildService(1L), buildStablishment(1L), ScheduleStatus.STATUS_FREE);
+
+    TurnService.requireUpcoming(schedule, now);
+  }
+
+  /**
+   * The test that catches the naive implementation: comparing only the HOUR
+   * would accept this slot, because 09:00 is after the 08:00 it is "now" — on
+   * a day that ended yesterday.
+   */
+  @Test
+  void requireUpcoming_rejects_yesterdaysSlot_evenWhenItsHourIsAheadOfTheClock() {
+    LocalDateTime now = LocalDateTime.of(2026, 8, 26, 8, 0);
+    Schedule schedule = buildScheduleAt(1L, LocalDate.of(2026, 8, 25), LocalTime.of(9, 0),
+        buildDoctor(UUID.randomUUID()), buildService(1L), buildStablishment(1L), ScheduleStatus.STATUS_FREE);
+
+    assertThatThrownBy(() -> TurnService.requireUpcoming(schedule, now))
+        .isInstanceOf(RuntimeException.class);
+  }
+
+  /** The mirror of the above: tomorrow is bookable at an hour already gone today. */
+  @Test
+  void requireUpcoming_accepts_tomorrowsSlot_atAnHourAlreadyPassedToday() {
+    LocalDateTime now = LocalDateTime.of(2026, 8, 26, 20, 0);
+    Schedule schedule = buildScheduleAt(1L, LocalDate.of(2026, 8, 27), LocalTime.of(9, 0),
+        buildDoctor(UUID.randomUUID()), buildService(1L), buildStablishment(1L), ScheduleStatus.STATUS_FREE);
+
+    TurnService.requireUpcoming(schedule, now);
+  }
+
+  @Test
+  void create_refusesToBook_andLeavesTheSlotUntouched_whenTheSlotAlreadyPassed() {
+    UUID patientUuid = UUID.randomUUID();
+    Schedule schedule = buildScheduleAt(10L, LocalDate.now().minusDays(1), LocalTime.of(9, 0),
+        buildDoctor(UUID.randomUUID()), buildService(1L), buildStablishment(1L), ScheduleStatus.STATUS_FREE);
+    TurnDTO dto = TurnDTO.builder().schedule(ScheduleDTO.builder().id(10L).build()).build();
+
+    when(patientRepository.findById(patientUuid)).thenReturn(Optional.of(buildPatient(patientUuid)));
+    when(scheduleRepository.findById(10L)).thenReturn(Optional.of(schedule));
+
+    assertThatThrownBy(() -> turnService.create(dto, patientUuid.toString()))
+        .isInstanceOf(RuntimeException.class)
+        .hasMessageContaining("ya paso");
+
+    // A rejected booking must not half-happen: no turn row, and the slot stays
+    // FREE so the clinic can still see it as an unused cupo rather than one
+    // occupied by a turn that was never created.
+    verify(turnRepository, never()).save(any());
+    verify(scheduleRepository, never()).saveAndFlush(any());
+    assertThat(schedule.getStatus()).isEqualTo(ScheduleStatus.STATUS_FREE);
   }
 
   // -- create: schedule occupancy + optimistic-lock concurrency guard --------

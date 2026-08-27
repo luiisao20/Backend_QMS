@@ -8,13 +8,13 @@
   "backgroundImage": "pediatric.jpg",
   "ctas": {
     "primary": { "label": "Agenda tu cita", "href": "#agenda" },
-    "phone": { "label": "[TELÉFONO]", "href": "tel:" }
+    "phone": { "label": "(02) 380-0100", "href": "tel:+59323800100" }
   },
   "panelTitle": "Cobertura",
   "rows": [
-    { "id": "aseguradora-1", "label": "[ASEGURADORA 1]", "price": { "amount": 12, "currency": "USD" } },
-    { "id": "aseguradora-2", "label": "[ASEGURADORA 2]", "price": { "amount": 12, "currency": "USD" } },
-    { "id": "aseguradora-3", "label": "[ASEGURADORA 3]", "price": { "amount": 12, "currency": "USD" } }
+    { "id": "aseguradora-1", "label": "Salvia Seguros", "price": { "amount": 12, "currency": "USD" } },
+    { "id": "aseguradora-2", "label": "Vitalia Salud", "price": { "amount": 12, "currency": "USD" } },
+    { "id": "aseguradora-3", "label": "Nexo Médico", "price": { "amount": 12, "currency": "USD" } }
   ],
   "noPlanRow": {
     "label": "Sin plan",

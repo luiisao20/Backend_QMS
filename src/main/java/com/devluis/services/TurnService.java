@@ -1,6 +1,7 @@
 package com.devluis.services;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.UUID;
@@ -61,6 +62,11 @@ public class TurnService {
     Schedule schedule = scheduleRepository.findById(dto.getSchedule().getId())
         .orElseThrow(() -> new RuntimeException("Horario no encontrado"));
 
+    // Antes que el chequeo de ocupacion, a proposito: un cupo pasado NUNCA
+    // vuelve a ser reservable, mientras que uno ocupado si puede liberarse. Se
+    // reporta primero la razon permanente.
+    requireUpcoming(schedule, LocalDateTime.now());
+
     if (!schedule.getStatus().equals(ScheduleStatus.STATUS_FREE)) {
       throw new RuntimeException("Este horario ya se encuentra ocupado o cancelado");
     }
@@ -87,6 +93,32 @@ public class TurnService {
     broadcastTurnUpdate(saved, savedDTO);
     sendTurnEmail(patient, schedule, nextOrder);
     return savedDTO;
+  }
+
+  /**
+   * Rechaza un cupo cuya hora de inicio ya quedo atras.
+   *
+   * <p>Sin esto, el unico filtro contra cupos pasados vivia en la UI, y un
+   * filtro que solo existe en el cliente no es una regla: {@code POST
+   * /api/turns} con el id de un cupo de las 08:00 se aceptaba a las 15:00, y
+   * dejaba en la agenda del doctor un turno para una hora que no existe. La
+   * app de Flutter tambien los oculta ahora, pero eso es comodidad; esto es la
+   * regla.
+   *
+   * <p>Compara {@code date} Y {@code hour} juntos, nunca la hora sola: un cupo
+   * de ayer a las 09:00 sigue siendo pasado a las 08:00 de hoy.
+   *
+   * <p>El instante llega por parametro en lugar de leerse aca adentro para que
+   * el limite exacto sea testeable al minuto — ver {@code TurnServiceTest}.
+   * Un cupo que arranca EXACTAMENTE ahora se rechaza: es el mismo criterio que
+   * usa la app para dibujar la grilla, y que las dos puntas corten igual evita
+   * que el paciente vea un chip que el servidor va a rechazar.
+   */
+  static void requireUpcoming(Schedule schedule, LocalDateTime now) {
+    LocalDateTime startsAt = LocalDateTime.of(schedule.getDate(), schedule.getHour());
+    if (!startsAt.isAfter(now)) {
+      throw new RuntimeException("Este horario ya paso. Elija un cupo posterior a la hora actual.");
+    }
   }
 
   @Transactional

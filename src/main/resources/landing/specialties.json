@@ -94,7 +94,7 @@
           "tags": ["mismo día"]
         },
         {
-          "id": "derivacion-a-sede",
+          "id": "derivación-a-sede",
           "name": "Derivación a sede",
           "description": "Si la videoconsulta necesita examen, el médico te agenda presencial en la sede más cercana.",
           "image": "reception.jpg",

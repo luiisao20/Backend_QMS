@@ -4,10 +4,10 @@
     "name": "CliniCore"
   },
   "contact": {
-    "phone": "[TELÉFONO]",
+    "phone": "(02) 380-0100",
     "emergencyPhone": "911",
-    "whatsapp": "[WHATSAPP]",
-    "email": "[CORREO]"
+    "whatsapp": "+593 99 000 0100",
+    "email": "contacto@clinicore.ec"
   },
   "nav": {
     "primary": [
@@ -108,7 +108,7 @@
     ]
   },
   "legal": {
-    "disclaimer": "Esto no es un servicio de emergencias. Si es una emergencia, llama al 911. Urgencias en sede: [TELÉFONO]. Historia clínica tratada bajo la [LOPDP]; cada acceso queda registrado con fecha, hora y responsable, y puedes ejercer tus derechos ARCO+ escribiendo a [CORREO] (respuesta en 15 días hábiles).",
+    "disclaimer": "Esto no es un servicio de emergencias. Si es una emergencia, llama al 911. Urgencias en sede: (02) 380-0110. Historia clínica tratada bajo la Ley Orgánica de Protección de Datos Personales; cada acceso queda registrado con fecha, hora y responsable, y puedes ejercer tus derechos ARCO+ escribiendo a proteccion.datos@clinicore.ec (respuesta en 15 días hábiles).",
     "copyright": "© 2026 CliniCore"
   }
 }

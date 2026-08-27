@@ -9,9 +9,9 @@
   "items": [
     {
       "id": "doctor-1",
-      "name": "Dr(a). [APELLIDO]",
-      "specialty": "[ESPECIALIDAD]",
-      "registrationNumber": "[_______]",
+      "name": "Dr(a). Salazar",
+      "specialty": "Medicina general",
+      "registrationNumber": "1005-2014-1523456",
       "image": "doctor-1.jpg",
       "upcomingSlots": [
         { "date": "2026-08-11", "time": "09:20" },
@@ -20,9 +20,9 @@
     },
     {
       "id": "doctor-2",
-      "name": "Dr(a). [APELLIDO]",
-      "specialty": "[ESPECIALIDAD]",
-      "registrationNumber": "[_______]",
+      "name": "Dr(a). Andrade",
+      "specialty": "Pediatría",
+      "registrationNumber": "1005-2012-1187204",
       "image": "doctor-2.jpg",
       "upcomingSlots": [
         { "date": "2026-08-11", "time": "10:40" },
@@ -31,9 +31,9 @@
     },
     {
       "id": "doctor-3",
-      "name": "Dr(a). [APELLIDO]",
-      "specialty": "[ESPECIALIDAD]",
-      "registrationNumber": "[_______]",
+      "name": "Dr(a). Cabrera",
+      "specialty": "Cardiología",
+      "registrationNumber": "1005-2010-1042988",
       "image": "doctor-3.jpg",
       "upcomingSlots": [
         { "date": "2026-08-12", "time": "11:20" },
@@ -42,9 +42,9 @@
     },
     {
       "id": "doctor-4",
-      "name": "Dr(a). [APELLIDO]",
-      "specialty": "[ESPECIALIDAD]",
-      "registrationNumber": "[_______]",
+      "name": "Dr(a). Vásquez",
+      "specialty": "Ginecología",
+      "registrationNumber": "1005-2016-1731560",
       "image": "doctor-4.jpg",
       "upcomingSlots": [
         { "date": "2026-08-13", "time": "09:00" },

@@ -8,19 +8,19 @@
   "items": [
     {
       "id": "sede-1",
-      "name": "Sede [NOMBRE]",
-      "address": "[DIRECCIÓN], [CIUDAD]",
-      "phone": "[TELÉFONO]",
-      "schedule": "[HORARIO]",
-      "emergencyService": "[ATIENDE / NO ATIENDE] emergencias"
+      "name": "Sede Norte",
+      "address": "Av. de los Shyris N38-120 y El Telégrafo, Quito",
+      "phone": "(02) 380-0110",
+      "schedule": "Lun a Vie 07:00-19:00 - Sáb 08:00-13:00",
+      "emergencyService": "Atiende emergencias"
     },
     {
       "id": "sede-2",
-      "name": "Sede [NOMBRE]",
-      "address": "[DIRECCIÓN], [CIUDAD]",
-      "phone": "[TELÉFONO]",
-      "schedule": "[HORARIO]",
-      "emergencyService": "[ATIENDE / NO ATIENDE] emergencias"
+      "name": "Sede Sur",
+      "address": "Av. Maldonado S12-45 y Ajaví, Quito",
+      "phone": "(02) 380-0120",
+      "schedule": "Lun a Vie 08:00-18:00",
+      "emergencyService": "No atiende emergencias"
     }
   ]
 }
