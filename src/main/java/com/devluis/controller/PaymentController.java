@@ -33,14 +33,12 @@ public class PaymentController {
 
   private final PaymentService paymentService;
 
-  @PreAuthorize("hasAnyAuthority('ROLE_EMPLOYEE', 'ROLE_ADMIN')")
   @PostMapping("/api/invoices/{invoiceId}/payments")
   public ResponseEntity<PaymentDTO> create(
       @PathVariable Long invoiceId, @Valid @RequestBody PaymentDTO dto, Authentication auth) {
     return new ResponseEntity<>(paymentService.create(invoiceId, dto, auth), HttpStatus.CREATED);
   }
 
-  @PreAuthorize("hasAnyAuthority('ROLE_EMPLOYEE', 'ROLE_ADMIN')")
   @GetMapping("/api/invoices/{invoiceId}/payments")
   public ResponseEntity<List<PaymentDTO>> getForInvoice(@PathVariable Long invoiceId) {
     return ResponseEntity.ok(paymentService.getForInvoice(invoiceId));

@@ -85,7 +85,6 @@ public class TurnController {
    * own patient. Mirrors the roles GlobalConfig hardcodes for
    * "/api/turns/*\/reassign" and "/api/turns/*\/staff-cancel".
    */
-  @PreAuthorize("hasAnyAuthority('ROLE_EMPLOYEE', 'ROLE_ADMIN')")
   @PutMapping("/{id}/waiting")
   public ResponseEntity<?> markAsWaiting(@PathVariable Long id, Authentication auth) {
     try {
@@ -99,7 +98,6 @@ public class TurnController {
    * Start attention: the patient is called in from the waiting room.
    * Staff-only for the same reason as {@link #markAsWaiting} above.
    */
-  @PreAuthorize("hasAnyAuthority('ROLE_EMPLOYEE', 'ROLE_ADMIN')")
   @PutMapping("/{id}/in-treatment")
   public ResponseEntity<?> markAsInTreatment(@PathVariable Long id,
       @RequestBody(required = false) com.devluis.dto.CallTurnDTO body,

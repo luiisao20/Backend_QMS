@@ -48,7 +48,6 @@ public class InvoiceController {
 
   private final InvoiceService invoiceService;
 
-  @PreAuthorize("hasAnyAuthority('ROLE_EMPLOYEE', 'ROLE_ADMIN', 'ROLE_DOCTOR')")
   @PostMapping("/api/invoices")
   public ResponseEntity<InvoiceDTO> create(@Valid @RequestBody InvoiceDTO dto, Authentication auth) {
     return new ResponseEntity<>(invoiceService.create(dto, auth), HttpStatus.CREATED);
@@ -71,7 +70,6 @@ public class InvoiceController {
 
   // Staff-wide browse/search — e.g. an admin billing queue filtered by
   // status, optionally scoped to one patient by uuid.
-  @PreAuthorize("hasAnyAuthority('ROLE_EMPLOYEE', 'ROLE_ADMIN')")
   @GetMapping("/api/invoices")
   public ResponseEntity<Page<InvoiceDTO>> search(
       @RequestParam(required = false) UUID patientId,
@@ -83,14 +81,12 @@ public class InvoiceController {
   // The staff "ver facturas de este paciente" screen, reached from Patient
   // Detail — same nested-resource idiom as
   // GET /api/patients/{patientId}/encounters.
-  @PreAuthorize("hasAnyAuthority('ROLE_EMPLOYEE', 'ROLE_ADMIN')")
   @GetMapping("/api/patients/{patientId}/invoices")
   public ResponseEntity<Page<InvoiceDTO>> getForPatient(
       @PathVariable UUID patientId, @PageableDefault(size = 10) Pageable pageable) {
     return ResponseEntity.ok(invoiceService.getForPatient(patientId, pageable));
   }
 
-  @PreAuthorize("hasAuthority('ROLE_ADMIN')")
   @PutMapping("/api/invoices/{id}/void")
   public ResponseEntity<InvoiceDTO> voidInvoice(
       @PathVariable Long id, @Valid @RequestBody VoidInvoiceBody body, Authentication auth) {

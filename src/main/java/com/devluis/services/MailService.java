@@ -2,14 +2,21 @@ package com.devluis.services;
 
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
+import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Service;
+import jakarta.mail.internet.MimeMessage;
+import org.thymeleaf.TemplateEngine;
+import org.thymeleaf.context.Context;
 
 import lombok.Data;
+import lombok.extern.slf4j.Slf4j;
 
 @Service
 @Data
+@Slf4j
 public class MailService {
   private final JavaMailSender javaMailSender;
+  private final TemplateEngine templateEngine;
 
   public void sendTestEmail(String to, String subject, String text) {
     SimpleMailMessage message = new SimpleMailMessage();
@@ -32,36 +39,34 @@ public class MailService {
       String date,
       String hour,
       String stablishmentName,
-      String doctorFullName
-  ) {
-    SimpleMailMessage message = new SimpleMailMessage();
-    message.setFrom("bravo.luis.1995@gmail.com");
-    message.setTo(patientEmail);
-    message.setSubject("Confirmación de Turno #" + turnOrder + " - " + serviceName);
+      String doctorFullName) {
 
-    String body = String.format(
-        "Estimado(a) %s %s (C.I: %s),\n\n"
-        + "Su turno ha sido creado exitosamente. A continuación los detalles:\n\n"
-        + "  📋 Número de turno: %d\n"
-        + "  🏥 Establecimiento: %s\n"
-        + "  🩺 Servicio: %s\n"
-        + "  👨‍⚕️ Doctor: %s\n"
-        + "  📅 Fecha: %s\n"
-        + "  🕐 Hora: %s\n\n"
-        + "Por favor, preséntese con anticipación.\n\n"
-        + "Saludos cordiales,\n"
-        + "Sistema de Gestión de Turnos (QMS)",
-        patientFirstName, patientLastName, patientCi,
-        turnOrder,
-        stablishmentName,
-        serviceName,
-        doctorFullName,
-        date,
-        hour
-    );
+    try {
+      MimeMessage message = javaMailSender.createMimeMessage();
+      MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
 
-    message.setText(body);
-    javaMailSender.send(message);
+      helper.setFrom("bravo.luis.1995@gmail.com");
+      helper.setTo(patientEmail);
+      helper.setSubject("Confirmación de Turno #" + turnOrder + " - " + serviceName);
+
+      Context context = new Context();
+      context.setVariable("patientFirstName", patientFirstName);
+      context.setVariable("patientLastName", patientLastName);
+      context.setVariable("patientCi", patientCi);
+      context.setVariable("turnOrder", turnOrder);
+      context.setVariable("stablishmentName", stablishmentName);
+      context.setVariable("serviceName", serviceName);
+      context.setVariable("doctorFullName", doctorFullName);
+      context.setVariable("date", date);
+      context.setVariable("hour", hour);
+
+      String htmlBody = templateEngine.process("cita_confirmada", context);
+      helper.setText(htmlBody, true);
+
+      javaMailSender.send(message);
+    } catch (Exception e) {
+      log.error("Error enviando email de confirmación: ", e);
+    }
   }
 
   public void sendTurnRescheduledEmail(
@@ -73,39 +78,32 @@ public class MailService {
       String date,
       String hour,
       String stablishmentName,
-      String doctorFullName
-  ) {
-    SimpleMailMessage message = new SimpleMailMessage();
-    message.setFrom("bravo.luis.1995@gmail.com");
-    message.setTo(patientEmail);
-    message.setSubject("Reasignación de Turno #" + turnOrder + " - " + serviceName);
+      String doctorFullName) {
 
-    String body = String.format(
-        "Estimado(a) %s %s,\n\n"
-        + "Le informamos que su turno ha sido REASIGNADO exitosamente. A continuación los nuevos detalles:\n\n"
-        + "  📋 Nuevo número de turno: %d\n"
-        + "  🏥 Establecimiento: %s\n"
-        + "  🩺 Servicio: %s\n"
-        + "  👨‍⚕️ Doctor: %s\n"
-        + "  📅 Nueva Fecha: %s\n"
-        + "  🕐 Nueva Hora: %s\n\n"
-        + "Por favor, preséntese con anticipación a su nueva cita.\n\n"
-        + "Saludos cordiales,\n"
-        + "Sistema de Gestión de Turnos (QMS)",
-        patientFirstName, patientLastName,
-        turnOrder,
-        stablishmentName,
-        serviceName,
-        doctorFullName,
-        date,
-        hour
-    );
-
-    message.setText(body);
     try {
+      MimeMessage message = javaMailSender.createMimeMessage();
+      MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
+
+      helper.setFrom("bravo.luis.1995@gmail.com");
+      helper.setTo(patientEmail);
+      helper.setSubject("Reasignación de Turno #" + turnOrder + " - " + serviceName);
+
+      Context context = new Context();
+      context.setVariable("patientFirstName", patientFirstName);
+      context.setVariable("patientLastName", patientLastName);
+      context.setVariable("turnOrder", turnOrder);
+      context.setVariable("stablishmentName", stablishmentName);
+      context.setVariable("serviceName", serviceName);
+      context.setVariable("doctorFullName", doctorFullName);
+      context.setVariable("date", date);
+      context.setVariable("hour", hour);
+
+      String htmlBody = templateEngine.process("cita_reasignada", context);
+      helper.setText(htmlBody, true);
+
       javaMailSender.send(message);
     } catch (Exception e) {
-      System.err.println("Error enviando email de reasignación: " + e.getMessage());
+      log.error("Error enviando email de reasignación: ", e);
     }
   }
 
@@ -117,32 +115,70 @@ public class MailService {
       String serviceName,
       String date,
       String hour,
-      String reason
-  ) {
-    SimpleMailMessage message = new SimpleMailMessage();
-    message.setFrom("bravo.luis.1995@gmail.com");
-    message.setTo(patientEmail);
-    message.setSubject("Cancelación de Turno #" + turnOrder + " - " + serviceName);
+      String reason) {
 
-    String body = String.format(
-        "Estimado(a) %s %s,\n\n"
-        + "Le informamos que su turno #%d para el servicio de %s del día %s a las %s ha sido CANCELADO.\n\n"
-        + (reason != null && !reason.isBlank() ? "Motivo: " + reason + "\n\n" : "")
-        + "Si requiere un nuevo turno, por favor ingrese nuevamente a la plataforma.\n\n"
-        + "Saludos cordiales,\n"
-        + "Sistema de Gestión de Turnos (QMS)",
-        patientFirstName, patientLastName,
-        turnOrder,
-        serviceName,
-        date,
-        hour
-    );
-
-    message.setText(body);
     try {
+      MimeMessage message = javaMailSender.createMimeMessage();
+      MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
+
+      helper.setFrom("bravo.luis.1995@gmail.com");
+      helper.setTo(patientEmail);
+      helper.setSubject("Cancelación de Turno #" + turnOrder + " - " + serviceName);
+
+      Context context = new Context();
+      context.setVariable("patientFirstName", patientFirstName);
+      context.setVariable("patientLastName", patientLastName);
+      context.setVariable("turnOrder", turnOrder);
+      context.setVariable("serviceName", serviceName);
+      context.setVariable("date", date);
+      context.setVariable("hour", hour);
+      context.setVariable("reason", reason);
+
+      String htmlBody = templateEngine.process("cita_cancelada", context);
+      helper.setText(htmlBody, true);
+
       javaMailSender.send(message);
     } catch (Exception e) {
-      System.err.println("Error enviando email de cancelación: " + e.getMessage());
+      log.error("Error enviando email de cancelación: ", e);
+    }
+  }
+
+  public void sendUpcomingTurnReminderEmail(
+      String patientEmail,
+      String patientFirstName,
+      String patientLastName,
+      int turnOrder,
+      String serviceName,
+      String date,
+      String hour,
+      String stablishmentName,
+      String doctorFullName) {
+
+    try {
+      MimeMessage message = javaMailSender.createMimeMessage();
+      MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
+
+      helper.setFrom("bravo.luis.1995@gmail.com");
+      helper.setTo(patientEmail);
+      helper.setSubject("Recordatorio: Su Turno #" + turnOrder + " es próximo");
+
+      Context context = new Context();
+      context.setVariable("patientFirstName", patientFirstName);
+      context.setVariable("patientLastName", patientLastName);
+      context.setVariable("turnOrder", turnOrder);
+      context.setVariable("stablishmentName", stablishmentName);
+      context.setVariable("serviceName", serviceName);
+      context.setVariable("doctorFullName", doctorFullName);
+      context.setVariable("date", date);
+      context.setVariable("hour", hour);
+
+      String htmlBody = templateEngine.process("recordatorio_cita", context);
+      helper.setText(htmlBody, true);
+
+      log.info("Correo enviado a {}", patientEmail);
+      javaMailSender.send(message);
+    } catch (Exception e) {
+      log.error("Error enviando email de recordatorio: ", e);
     }
   }
 }

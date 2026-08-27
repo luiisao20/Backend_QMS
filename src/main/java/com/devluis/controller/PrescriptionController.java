@@ -34,13 +34,11 @@ public class PrescriptionController {
 
   private final PrescriptionService prescriptionService;
 
-  @PreAuthorize("hasAnyAuthority('ROLE_DOCTOR', 'ROLE_ADMIN')")
   @PostMapping("/api/prescriptions")
   public ResponseEntity<PrescriptionDTO> create(@Valid @RequestBody PrescriptionDTO dto, Authentication auth) {
     return new ResponseEntity<>(prescriptionService.create(dto, auth), HttpStatus.CREATED);
   }
 
-  @PreAuthorize("hasAnyAuthority('ROLE_DOCTOR', 'ROLE_ADMIN')")
   @GetMapping("/api/prescriptions/{id}")
   public ResponseEntity<PrescriptionDTO> getById(@PathVariable Long id, Authentication auth) {
     return ResponseEntity.ok(prescriptionService.getById(id, auth));
@@ -55,7 +53,6 @@ public class PrescriptionController {
   }
 
   // The "pacientes/recetas" admin/staff screen.
-  @PreAuthorize("hasAnyAuthority('ROLE_DOCTOR', 'ROLE_ADMIN')")
   @GetMapping("/api/patients/{patientId}/prescriptions")
   public ResponseEntity<Page<PrescriptionDTO>> getHistoryForPatient(
       @PathVariable UUID patientId,

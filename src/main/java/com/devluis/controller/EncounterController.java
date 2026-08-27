@@ -46,13 +46,11 @@ public class EncounterController {
 
   private final EncounterService encounterService;
 
-  @PreAuthorize("hasAnyAuthority('ROLE_DOCTOR', 'ROLE_ADMIN')")
   @PostMapping("/api/encounters")
   public ResponseEntity<EncounterDTO> create(@Valid @RequestBody EncounterDTO dto, Authentication auth) {
     return new ResponseEntity<>(encounterService.create(dto, auth), HttpStatus.CREATED);
   }
 
-  @PreAuthorize("hasAnyAuthority('ROLE_DOCTOR', 'ROLE_ADMIN')")
   @GetMapping("/api/encounters/{id}")
   public ResponseEntity<EncounterDTO> getById(@PathVariable Long id, Authentication auth) {
     return ResponseEntity.ok(encounterService.getById(id, auth));
@@ -68,7 +66,6 @@ public class EncounterController {
   }
 
   // The "pacientes/historial-clinico" admin/staff screen.
-  @PreAuthorize("hasAnyAuthority('ROLE_DOCTOR', 'ROLE_ADMIN')")
   @GetMapping("/api/patients/{patientId}/encounters")
   public ResponseEntity<Page<EncounterDTO>> getHistoryForPatient(
       @PathVariable UUID patientId,
@@ -77,7 +74,6 @@ public class EncounterController {
     return ResponseEntity.ok(encounterService.getHistoryForPatient(patientId, auth, pageable));
   }
 
-  @PreAuthorize("hasAnyAuthority('ROLE_DOCTOR', 'ROLE_ADMIN')")
   @PutMapping("/api/encounters/{id}")
   public ResponseEntity<EncounterDTO> update(
       @PathVariable Long id, @Valid @RequestBody EncounterDTO dto, Authentication auth) {

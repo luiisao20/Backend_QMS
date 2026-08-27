@@ -65,7 +65,6 @@ public class PatientController {
    * patient could read every other patient by UUID. A patient reading their own
    * profile uses {@code GET /me} instead.
    */
-  @PreAuthorize("hasAnyAuthority('ROLE_DOCTOR', 'ROLE_EMPLOYEE', 'ROLE_ADMIN')")
   @GetMapping("/{id}")
   public ResponseEntity<PatientDTO> getPatient(@PathVariable UUID id) {
     return ResponseEntity.ok(patientService.getPatientById(id));

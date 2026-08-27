@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cancelación de Turno</title>
+    <style>
+        body { font-family: Arial, sans-serif; background-color: #f9f9f9; margin: 0; padding: 0; color: #333333; }
+        .container { width: 100%; max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 10px; overflow: hidden; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); margin-top: 20px; margin-bottom: 20px; }
+        .header { background-color: #c90b34; color: #ffffff; padding: 20px; text-align: center; }
+        .header h1 { margin: 0; font-size: 24px; }
+        .content { padding: 30px; line-height: 1.6; }
+        .content h2 { color: #c90b34; margin-top: 0; font-size: 18px; }
+        .details-box { background-color: #fceceb; border-left: 4px solid #c90b34; padding: 15px; margin-bottom: 20px; border-radius: 0 5px 5px 0; }
+        .footer { background-color: #f1f1f1; padding: 20px; text-align: center; font-size: 12px; color: #777777; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1 th:text="'Cancelación de Turno #' + ${turnOrder}">Cancelación de Turno</h1>
+        </div>
+        <div class="content">
+            <h2 th:text="'Estimado(a) ' + ${patientFirstName} + ' ' + ${patientLastName} + ',' ">Estimado(a) Paciente,</h2>
+            <p>Le informamos que su turno para el servicio de <strong th:text="${serviceName}"></strong> del día <strong th:text="${date}"></strong> a las <strong th:text="${hour}"></strong> ha sido <strong>CANCELADO</strong>.</p>
+            
+            <div th:if="${reason != null and !reason.isEmpty()}" class="details-box">
+                <p><strong>Motivo:</strong> <span th:text="${reason}"></span></p>
+            </div>
+            
+            <p>Si requiere un nuevo turno, por favor ingrese nuevamente a la plataforma.</p>
+            <p>Saludos cordiales,<br>Sistema de Gestión de Turnos (QMS)</p>
+        </div>
+        <div class="footer">
+            <p>Este es un correo informativo, por favor no responda a esta dirección.</p>
+        </div>
+    </div>
+</body>
+</html>

@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Resultados Listos</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f9f9f9;
+            margin: 0;
+            padding: 0;
+            color: #333333;
+        }
+        .container {
+            width: 100%;
+            max-width: 600px;
+            margin: 0 auto;
+            background-color: #ffffff;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            margin-top: 20px;
+            margin-bottom: 20px;
+        }
+        .header {
+            background-color: #0b2e59;
+            color: #ffffff;
+            padding: 20px;
+            text-align: center;
+        }
+        .header h1 {
+            margin: 0;
+            font-size: 24px;
+        }
+        .content {
+            padding: 30px;
+            line-height: 1.6;
+        }
+        .content h2 {
+            color: #0076c0;
+            margin-top: 0;
+        }
+        .info-box {
+            background-color: #f0f7fb;
+            border: 1px solid #d4eaf7;
+            padding: 15px;
+            margin-bottom: 20px;
+            border-radius: 5px;
+            text-align: center;
+        }
+        .footer {
+            background-color: #f1f1f1;
+            padding: 20px;
+            text-align: center;
+            font-size: 12px;
+            color: #777777;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Resultados Médicos Disponibles</h1>
+        </div>
+        <div class="content">
+            <h2 th:text="'Hola, ' + ${nombrePaciente}">Hola, Paciente</h2>
+            <p>Te informamos que los resultados de tus estudios médicos ya se encuentran listos y han sido procesados exitosamente.</p>
+            
+            <div class="info-box">
+                <p><strong>Estudio:</strong> <span th:text="${tipoEstudio}">Análisis de Sangre</span></p>
+                <p><strong>Fecha de realización:</strong> <span th:text="${fechaEstudio}">10 de Octubre de 2026</span></p>
+            </div>
+            
+            <p>Puedes acercarte a nuestras instalaciones para retirar la copia física o solicitarlos durante tu próxima consulta médica.</p>
+            
+            <p>Saludos cordiales,<br>El equipo del laboratorio</p>
+        </div>
+        <div class="footer">
+            <p>Este es un correo informativo, por favor no respondas a esta dirección.</p>
+        </div>
+    </div>
+</body>
+</html>

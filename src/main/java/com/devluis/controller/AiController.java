@@ -55,7 +55,6 @@ public class AiController {
 
   // El boton "Generar resumen" de la ficha del paciente en el panel
   // (/admin/pacientes/informacion/{id}), mientras el medico atiende.
-  @PreAuthorize("hasAnyAuthority('ROLE_DOCTOR', 'ROLE_ADMIN')")
   @PostMapping("/api/patients/{patientId}/clinical-summary")
   public ResponseEntity<ClinicalSummaryDTO> getClinicalSummary(
       @PathVariable UUID patientId, Authentication auth) {

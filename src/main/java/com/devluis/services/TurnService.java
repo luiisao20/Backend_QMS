@@ -10,6 +10,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.orm.ObjectOptimisticLockingFailureException;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -98,17 +99,20 @@ public class TurnService {
   /**
    * Rechaza un cupo cuya hora de inicio ya quedo atras.
    *
-   * <p>Sin esto, el unico filtro contra cupos pasados vivia en la UI, y un
+   * <p>
+   * Sin esto, el unico filtro contra cupos pasados vivia en la UI, y un
    * filtro que solo existe en el cliente no es una regla: {@code POST
    * /api/turns} con el id de un cupo de las 08:00 se aceptaba a las 15:00, y
    * dejaba en la agenda del doctor un turno para una hora que no existe. La
    * app de Flutter tambien los oculta ahora, pero eso es comodidad; esto es la
    * regla.
    *
-   * <p>Compara {@code date} Y {@code hour} juntos, nunca la hora sola: un cupo
+   * <p>
+   * Compara {@code date} Y {@code hour} juntos, nunca la hora sola: un cupo
    * de ayer a las 09:00 sigue siendo pasado a las 08:00 de hoy.
    *
-   * <p>El instante llega por parametro en lugar de leerse aca adentro para que
+   * <p>
+   * El instante llega por parametro en lugar de leerse aca adentro para que
    * el limite exacto sea testeable al minuto — ver {@code TurnServiceTest}.
    * Un cupo que arranca EXACTAMENTE ahora se rechaza: es el mismo criterio que
    * usa la app para dibujar la grilla, y que las dos puntas corten igual evita
@@ -209,12 +213,12 @@ public class TurnService {
   }
 
   public Page<TurnDTO> getTurnsForPatient(
-      UUID patientUuid, 
-      TurnStatus status, 
-      LocalDate fromDate, 
-      LocalDate toDate, 
+      UUID patientUuid,
+      TurnStatus status,
+      LocalDate fromDate,
+      LocalDate toDate,
       Pageable pageable) {
-    
+
     Specification<Turn> spec = (root, query, cb) -> {
       List<Predicate> predicates = new java.util.ArrayList<>();
 
@@ -269,7 +273,7 @@ public class TurnService {
     return updatedDTO;
   }
 
-public TurnDTO markAsTreatedAdmin(Long turnId) {
+  public TurnDTO markAsTreatedAdmin(Long turnId) {
     Turn turn = turnRepository.findById(turnId)
         .orElseThrow(() -> new RuntimeException("Turno no encontrado"));
 
@@ -383,6 +387,23 @@ public TurnDTO markAsTreatedAdmin(Long turnId) {
 
     TurnDTO updatedDTO = mapToDTO(updated);
     broadcastTurnUpdate(updated, updatedDTO);
+
+    if (turn.getPatient() != null && turn.getSchedule() != null) {
+      String serviceName = turn.getSchedule().getService() != null ? turn.getSchedule().getService().getName() : "N/A";
+      String date = turn.getSchedule().getDate() != null ? turn.getSchedule().getDate().toString() : "N/A";
+      String hour = turn.getSchedule().getHour() != null ? turn.getSchedule().getHour().toString() : "N/A";
+
+      mailService.sendTurnCancelledEmail(
+          turn.getPatient().getEmail(),
+          turn.getPatient().getFirstName(),
+          turn.getPatient().getLastName(),
+          turn.getOrder(),
+          serviceName,
+          date,
+          hour,
+          "Cancelado por el paciente desde su portal");
+    }
+
     return updatedDTO;
   }
 
@@ -638,11 +659,11 @@ public TurnDTO markAsTreatedAdmin(Long turnId) {
   /**
    * Libera un horario a STATUS_FREE tras un cancelTurn/reassignTurn — pero
    * SOLO si:
-   *   1. Está actualmente STATUS_OCCUPIED. Un horario STATUS_UNAVAILABLE
-   *      (bloqueado manualmente por un administrador) nunca debe volver a
-   *      FREE solo porque un turno sobre él fue cancelado.
-   *   2. Ningún OTRO turno todavía activo (distinto de {@code turnIdToExclude})
-   *      sigue apuntando a este horario.
+   * 1. Está actualmente STATUS_OCCUPIED. Un horario STATUS_UNAVAILABLE
+   * (bloqueado manualmente por un administrador) nunca debe volver a
+   * FREE solo porque un turno sobre él fue cancelado.
+   * 2. Ningún OTRO turno todavía activo (distinto de {@code turnIdToExclude})
+   * sigue apuntando a este horario.
    *
    * El punto 2 importa por dos razones: (a) en el estado estable, una vez que
    * toda reserva pasa por {@link #occupySchedule}, nunca debería haber más de
@@ -771,17 +792,21 @@ public TurnDTO markAsTreatedAdmin(Long turnId) {
     // paciente) puede suscribirse a cualquier /topic/**. Por eso este canal
     // JAMÁS debe llevar un TurnDTO completo — solo TurnBoardDTO, que no tiene
     // ningún campo que identifique a un paciente.
-    if (turn.getSchedule() != null && turn.getSchedule().getStablishment() != null && turn.getSchedule().getDate() != null) {
-      String topic = "/topic/stablishment/" + turn.getSchedule().getStablishment().getId() + "/" + turn.getSchedule().getDate();
+    if (turn.getSchedule() != null && turn.getSchedule().getStablishment() != null
+        && turn.getSchedule().getDate() != null) {
+      String topic = "/topic/stablishment/" + turn.getSchedule().getStablishment().getId() + "/"
+          + turn.getSchedule().getDate();
       messagingTemplate.convertAndSend(topic, mapToBoardDTO(turn));
     }
 
     // Canal por doctor, servicio y fecha usando autenticación (detalle
     // completo — solo lo recibe el doctor dueño del turno).
-    if (turn.getSchedule() != null && turn.getSchedule().getDoctor() != null && turn.getSchedule().getService() != null && turn.getSchedule().getDate() != null) {
+    if (turn.getSchedule() != null && turn.getSchedule().getDoctor() != null && turn.getSchedule().getService() != null
+        && turn.getSchedule().getDate() != null) {
       String doctorUuid = turn.getSchedule().getDoctor().getUuid().toString();
       // El cliente se suscribirá a: /user/topic/service/{serviceId}/{date}
-      String destination = "/topic/service/" + turn.getSchedule().getService().getId() + "/" + turn.getSchedule().getDate();
+      String destination = "/topic/service/" + turn.getSchedule().getService().getId() + "/"
+          + turn.getSchedule().getDate();
       messagingTemplate.convertAndSendToUser(doctorUuid, destination, turnDTO);
     }
 
@@ -814,11 +839,55 @@ public TurnDTO markAsTreatedAdmin(Long turnId) {
           date,
           hour,
           stablishmentName,
-          doctorFullName
-      );
+          doctorFullName);
     } catch (Exception e) {
       // Log del error pero no interrumpimos la creación del turno
       System.err.println("Error al enviar correo de notificación: " + e.getMessage());
+    }
+  }
+
+  @Scheduled(cron = "0 0/5 * * * *")
+  @Transactional
+  public void checkUpcomingTurnsAndNotify() {
+    LocalDate tomorrow = LocalDate.now().plusDays(1);
+    List<Turn> upcomingTurns = turnRepository.findUpcomingPendingWithoutReminder(
+        com.devluis.types.TurnStatus.TURN_PENDING, tomorrow);
+
+    LocalDateTime now = LocalDateTime.now();
+    LocalDateTime limit = now.plusHours(24);
+
+    for (Turn turn : upcomingTurns) {
+      if (turn.getSchedule() != null && turn.getPatient() != null && turn.getPatient().getEmail() != null) {
+        LocalDateTime turnStart = LocalDateTime.of(turn.getSchedule().getDate(), turn.getSchedule().getHour());
+
+        // Verifica que el turno está entre 'ahora' y 'dentro de 24 horas'
+        if (turnStart.isAfter(now) && !turnStart.isAfter(limit)) {
+          String serviceName = turn.getSchedule().getService() != null ? turn.getSchedule().getService().getName()
+              : "N/A";
+          String date = turn.getSchedule().getDate() != null ? turn.getSchedule().getDate().toString() : "N/A";
+          String hour = turn.getSchedule().getHour() != null ? turn.getSchedule().getHour().toString() : "N/A";
+          String stablishmentName = turn.getSchedule().getStablishment() != null
+              ? turn.getSchedule().getStablishment().getName()
+              : "N/A";
+          String doctorFullName = turn.getSchedule().getDoctor() != null
+              ? turn.getSchedule().getDoctor().getFirstName() + " " + turn.getSchedule().getDoctor().getLastName()
+              : "N/A";
+
+          mailService.sendUpcomingTurnReminderEmail(
+              turn.getPatient().getEmail(),
+              turn.getPatient().getFirstName(),
+              turn.getPatient().getLastName(),
+              turn.getOrder(),
+              serviceName,
+              date,
+              hour,
+              stablishmentName,
+              doctorFullName);
+
+          turn.setReminderSent(true);
+          turnRepository.save(turn);
+        }
+      }
     }
   }
 }

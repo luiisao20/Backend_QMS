@@ -30,6 +30,10 @@ public class Turn {
   @Builder.Default
   private TurnStatus status = TurnStatus.TURN_PENDING;
 
+  @Column(name = "reminder_sent")
+  @Builder.Default
+  private Boolean reminderSent = false;
+
   @CreationTimestamp
   @Column(columnDefinition = "timestamptz")
   private OffsetDateTime createdAt;

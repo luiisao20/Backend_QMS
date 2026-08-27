@@ -52,7 +52,6 @@ public class PatientCoverageController {
 
   private final PatientCoverageService patientCoverageService;
 
-  @PreAuthorize("hasAnyAuthority('ROLE_EMPLOYEE', 'ROLE_ADMIN')")
   @PostMapping("/api/patient-coverages")
   public ResponseEntity<PatientCoverageDTO> create(@Valid @RequestBody PatientCoverageDTO dto) {
     return new ResponseEntity<>(patientCoverageService.create(dto), HttpStatus.CREATED);
@@ -81,20 +80,17 @@ public class PatientCoverageController {
 
   // The "administracion/planes-de-cobertura"-adjacent staff screen: this
   // patient's coverage history.
-  @PreAuthorize("hasAnyAuthority('ROLE_EMPLOYEE', 'ROLE_ADMIN')")
   @GetMapping("/api/patients/{patientId}/coverages")
   public ResponseEntity<List<PatientCoverageDTO>> getForPatient(@PathVariable UUID patientId) {
     return ResponseEntity.ok(patientCoverageService.listForPatient(patientId));
   }
 
-  @PreAuthorize("hasAnyAuthority('ROLE_EMPLOYEE', 'ROLE_ADMIN')")
   @PutMapping("/api/patient-coverages/{id}")
   public ResponseEntity<PatientCoverageDTO> update(
       @PathVariable Long id, @Valid @RequestBody PatientCoverageDTO dto) {
     return ResponseEntity.ok(patientCoverageService.update(id, dto));
   }
 
-  @PreAuthorize("hasAnyAuthority('ROLE_EMPLOYEE', 'ROLE_ADMIN')")
   @DeleteMapping("/api/patient-coverages/{id}")
   public ResponseEntity<Void> delete(@PathVariable Long id) {
     patientCoverageService.delete(id);

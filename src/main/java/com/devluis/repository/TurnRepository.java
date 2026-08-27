@@ -42,6 +42,9 @@ public interface TurnRepository extends JpaRepository<Turn, Long>, JpaSpecificat
   List<Turn> findCalledForBoard(@Param("stablishmentId") Long stablishmentId,
       @Param("date") java.time.LocalDate date);
 
+  @Query("SELECT t FROM Turn t WHERE t.status = :status AND (t.reminderSent = false OR t.reminderSent IS NULL) AND t.schedule.date <= :maxDate")
+  List<Turn> findUpcomingPendingWithoutReminder(@Param("status") com.devluis.types.TurnStatus status, @Param("maxDate") LocalDate maxDate);
+
   @Query("SELECT COUNT(t) FROM Turn t WHERE t.schedule.service.id = :serviceId AND t.schedule.date = :date")
   Long countTurnsByServiceAndDate(@Param("serviceId") Long serviceId, @Param("date") LocalDate date);
 
