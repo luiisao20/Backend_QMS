@@ -2,9 +2,8 @@ name: Despliegue en DockerHub
 
 on:
   push:
-    branches: [main]
     tags:
-      - '*'
+      - "*.*.*-*"
 
 jobs:
   deploy:
@@ -27,7 +26,7 @@ jobs:
       # Paso 3
       - name: Compilar y subir imagen
         uses: docker/build-push-action@v4
-        with: 
+        with:
           push: true
           tags: |
             ${{ secrets.DOCKER_USERNAME }}/backend_qms:latest
