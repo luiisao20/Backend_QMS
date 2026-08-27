@@ -8,22 +8,22 @@
     {
       "id": "iess",
       "name": "IESS",
-      "requirements": "[Documentos que pide la clínica: cédula, certificado de aportaciones, derivación, etc.]"
+      "requirements": "Cédula, certificado de aportaciones vigente y la derivación emitida por tu unidad asignada."
     },
     {
       "id": "issfa",
       "name": "ISSFA",
-      "requirements": "[Documentos que pide la clínica.]"
+      "requirements": "Cédula, carné del ISSFA y la orden de atención autorizada."
     },
     {
       "id": "isspol",
       "name": "ISSPOL",
-      "requirements": "[Documentos que pide la clínica.]"
+      "requirements": "Cédula, carné del ISSPOL y la orden de atención autorizada."
     },
     {
       "id": "msp",
       "name": "MSP",
-      "requirements": "[Documentos que pide la clínica.]"
+      "requirements": "Cédula y la referencia del centro de salud que te derivó."
     }
   ]
 }

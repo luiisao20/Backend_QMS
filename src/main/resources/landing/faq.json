@@ -13,7 +13,7 @@
     {
       "id": "cambiar-o-cancelar",
       "question": "¿Puedo cambiar o cancelar mi cita?",
-      "answer": "Sí, desde tu perfil hasta 24 horas antes, sin llamar. Pasado ese plazo escríbenos al [WHATSAPP] para que el cupo se libere a tiempo."
+      "answer": "Sí, desde tu perfil hasta 24 horas antes, sin llamar. Pasado ese plazo escríbenos al +593 99 000 0100 para que el cupo se libere a tiempo."
     },
     {
       "id": "llego-tarde",
@@ -28,7 +28,7 @@
     {
       "id": "iess-y-aseguradoras",
       "question": "¿Trabajan con IESS y aseguradoras?",
-      "answer": "Trabajamos con [LISTA DE ASEGURADORAS] y con [IESS / ISSFA / ISSPOL / MSP]. Los requisitos de documentos los confirma administración."
+      "answer": "Trabajamos con Salvia Seguros, Vitalia Salud, Nexo Médico, Amparo Salud, Prisma Seguros, Cardinal Vida y Arcadia Salud y con el IESS, el ISSFA y el ISSPOL. Los requisitos de documentos los confirma administración."
     }
   ]
 }

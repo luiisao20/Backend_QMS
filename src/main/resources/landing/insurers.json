@@ -4,12 +4,12 @@
     "kicker": "Convenios con seguros"
   },
   "items": [
-    { "id": "aseguradora-1", "name": "[ASEGURADORA 1]" },
-    { "id": "aseguradora-2", "name": "[ASEGURADORA 2]" },
-    { "id": "aseguradora-3", "name": "[ASEGURADORA 3]" },
-    { "id": "aseguradora-4", "name": "[ASEGURADORA 4]" },
-    { "id": "aseguradora-5", "name": "[ASEGURADORA 5]" },
-    { "id": "aseguradora-6", "name": "[ASEGURADORA 6]" },
-    { "id": "aseguradora-7", "name": "[ASEGURADORA 7]" }
+    { "id": "aseguradora-1", "name": "Salvia Seguros" },
+    { "id": "aseguradora-2", "name": "Vitalia Salud" },
+    { "id": "aseguradora-3", "name": "Nexo Médico" },
+    { "id": "aseguradora-4", "name": "Amparo Salud" },
+    { "id": "aseguradora-5", "name": "Prisma Seguros" },
+    { "id": "aseguradora-6", "name": "Cardinal Vida" },
+    { "id": "aseguradora-7", "name": "Arcadia Salud" }
   ]
 }
