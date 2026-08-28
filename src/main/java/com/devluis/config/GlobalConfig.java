@@ -62,7 +62,7 @@ public class GlobalConfig {
                 "/api/schedule-templates", "/api/services/*/doctors", "/api/services/*/schedules", 
                 "/api/stablishments/*/services", "/api/stablishments/*/doctors", "/api/packages", 
                 "/api/session-plans", "/api/promotions").permitAll()
-            .requestMatchers("/ws-turns/**", "/api/ai/chat", "/auth/login-patient", "/auth/login-doctor", "/auth/login-operator", "/auth/mobile/login-patient", 
+            .requestMatchers("/ws-turns/**", "/auth/login-patient", "/auth/login-doctor", "/auth/login-operator", "/auth/mobile/login-patient", 
                 "/auth/init-registration-patient", "/auth/recover-password/init", "/auth/logout").permitAll()
             .requestMatchers("/auth/recover-password/verify-otp", "/auth/verify-registration-otp").hasAuthority("ROLE_OTP_PENDING")
             .requestMatchers("/auth/recover-password/change").hasAuthority("ROLE_CHANGE_PASSWORD")
@@ -81,20 +81,22 @@ public class GlobalConfig {
             // -------------------------------------------------------------
             // 3. GRUPO 1: ROLE_DOCTOR, ROLE_EMPLOYEE, ROLE_ADMIN
             // -------------------------------------------------------------
-            .requestMatchers(
-                "/api/turns/patient/**", 
+            .requestMatchers(HttpMethod.GET, 
                 "/api/turns", 
                 "/api/patients", 
                 "/api/patients/*",
                 "/api/metrics/**",
-                "/api/patients/*/clinical-summary",
-                "/api/encounters",
                 "/api/encounters/*",
                 "/api/patients/*/encounters",
-                "/api/invoices",
-                "/api/prescriptions",
                 "/api/prescriptions/*",
                 "/api/patients/*/prescriptions"
+            ).hasAnyAuthority("ROLE_DOCTOR", "ROLE_EMPLOYEE", "ROLE_ADMIN")
+            .requestMatchers(
+                "/api/turns/patient/**", 
+                "/api/patients/*/clinical-summary",
+                "/api/encounters",
+                "/api/invoices",
+                "/api/prescriptions"
             ).hasAnyAuthority("ROLE_DOCTOR", "ROLE_EMPLOYEE", "ROLE_ADMIN")
 
             // -------------------------------------------------------------
