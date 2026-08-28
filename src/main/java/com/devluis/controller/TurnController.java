@@ -16,6 +16,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import com.devluis.dto.TurnDTO;
+import com.devluis.dto.TurnDailyCountsDTO;
 import com.devluis.services.TurnService;
 import com.devluis.types.TurnStatus;
 
@@ -47,6 +48,23 @@ public class TurnController {
       @RequestParam(required = false) TurnStatus status,
       @PageableDefault(size = 10) Pageable pageable) {
     return turnService.getAll(stablishmentId, doctorId, serviceId, date, status, pageable);
+  }
+
+  /**
+   * Conteos del dia para las tarjetas del panel: por sede y por servicio.
+   *
+   * Va ANTES de @GetMapping("/{id}") en el archivo por costumbre, pero no
+   * depende de eso: "daily-counts" no es un Long, asi que la ruta con
+   * parametro no lo captura ni aunque estuviera primero.
+   *
+   * `date` es opcional y cae a hoy. La tarjeta que el operador mira al abrir el
+   * panel es la de la jornada en curso; pedirle la fecha para el caso normal
+   * seria pedirle que escriba lo que ya sabemos.
+   */
+  @GetMapping("/daily-counts")
+  public ResponseEntity<TurnDailyCountsDTO> getDailyCounts(
+      @RequestParam(required = false) @DateTimeFormat(iso = ISO.DATE) LocalDate date) {
+    return ResponseEntity.ok(turnService.getDailyCounts(date != null ? date : LocalDate.now()));
   }
 
   @GetMapping("/me")

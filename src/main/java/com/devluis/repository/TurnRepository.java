@@ -20,16 +20,19 @@ import org.springframework.data.repository.query.Param;
 public interface TurnRepository extends JpaRepository<Turn, Long>, JpaSpecificationExecutor<Turn> {
 
   /**
-   * Los turnos YA LLAMADOS de una sede en una fecha, del mas reciente al mas
-   * viejo. Alimenta la pantalla de sala.
+   * Los turnos de una sede, en una fecha, que esten en alguno de los estados
+   * pedidos. Alimenta la pantalla de sala.
    *
-   * Ordena por calledAt y NO por createdAt: createdAt es cuando se reservo el
-   * turno, que puede ser de hace una semana y no dice nada sobre el orden en
-   * que se llamo a la gente hoy.
+   * Los estados viajan como PARAMETRO y no escritos dentro de la consulta a
+   * proposito: la regla de que un turno atendido o cancelado ya no va en la
+   * pantalla es una decision de producto, y este proyecto no tiene base de
+   * datos en el entorno de tests, asi que un predicado escrito aca adentro
+   * seria inverificable. Con el parametro, la regla vive en SalaService y
+   * tiene test; esta consulta queda como puro acceso a datos.
    *
-   * calledAt IS NOT NULL es el filtro real de "ya se llamo": el status no
-   * alcanza porque un turno atendido y uno en atencion son ambos llamados, y
-   * un turno cancelado pudo haberse llamado antes de cancelarse.
+   * Tampoco ordena. La pantalla mezcla dos grupos con criterios distintos
+   * -- llamados por hora de llamado, en espera por hora de cita -- y eso no
+   * es un ORDER BY: se arma en SalaService, donde tambien tiene test.
    *
    * SIN VERIFICAR contra Postgres, igual que el resto de las JPQL del proyecto.
    */
@@ -37,10 +40,10 @@ public interface TurnRepository extends JpaRepository<Turn, Long>, JpaSpecificat
       + "JOIN t.schedule s "
       + "WHERE s.stablishment.id = :stablishmentId "
       + "AND s.date = :date "
-      + "AND t.calledAt IS NOT NULL "
-      + "ORDER BY t.calledAt DESC")
-  List<Turn> findCalledForBoard(@Param("stablishmentId") Long stablishmentId,
-      @Param("date") java.time.LocalDate date);
+      + "AND t.status IN :statuses")
+  List<Turn> findBoardTurns(@Param("stablishmentId") Long stablishmentId,
+      @Param("date") java.time.LocalDate date,
+      @Param("statuses") java.util.Collection<TurnStatus> statuses);
 
   @Query("SELECT t FROM Turn t WHERE t.status = :status AND (t.reminderSent = false OR t.reminderSent IS NULL) AND t.schedule.date <= :maxDate")
   List<Turn> findUpcomingPendingWithoutReminder(@Param("status") com.devluis.types.TurnStatus status, @Param("maxDate") LocalDate maxDate);
@@ -78,6 +81,26 @@ public interface TurnRepository extends JpaRepository<Turn, Long>, JpaSpecificat
       "WHERE t.schedule.date BETWEEN :from AND :to " +
       "GROUP BY t.schedule.stablishment.id, t.status")
   List<LongStatusCountRow> countByStablishmentAndStatusInRange(@Param("from") LocalDate from, @Param("to") LocalDate to);
+
+  /**
+   * Conteo por SERVICIO y estado para UN dia.
+   *
+   * Existe aparte de countByStablishmentAndStatusInRange porque las tarjetas
+   * del panel de turnos preguntan dos cosas distintas: cuantos turnos tiene
+   * cada sede hoy, y cuantos tiene cada servicio DENTRO de la sede elegida.
+   * Agrupar por servicio en la base y no contar en memoria es lo que evita
+   * traerse los ~200 turnos del dia solo para mostrar un numero en una tarjeta.
+   *
+   * Un solo dia y no un rango: estas tarjetas son de la jornada en curso. Si
+   * algun dia hace falta el rango, se agrega el segundo parametro como en la
+   * de establecimiento.
+   *
+   * SIN VERIFICAR contra Postgres, igual que el resto de las JPQL del proyecto.
+   */
+  @Query("SELECT new com.devluis.dto.LongStatusCountRow(t.schedule.service.id, t.status, COUNT(t)) FROM Turn t " +
+      "WHERE t.schedule.date = :date " +
+      "GROUP BY t.schedule.service.id, t.status")
+  List<LongStatusCountRow> countByServiceAndStatusForDate(@Param("date") LocalDate date);
 
   @Query("SELECT new com.devluis.dto.UuidStatusCountRow(t.schedule.doctor.uuid, t.status, COUNT(t)) FROM Turn t " +
       "WHERE t.schedule.doctor IS NOT NULL AND t.schedule.date BETWEEN :from AND :to " +

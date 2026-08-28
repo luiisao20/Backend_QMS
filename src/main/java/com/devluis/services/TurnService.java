@@ -3,7 +3,9 @@ package com.devluis.services;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 import org.springframework.data.domain.Page;
@@ -14,7 +16,9 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.devluis.dto.ConsultorioDTO;
 import com.devluis.dto.DoctorDTO;
+import com.devluis.dto.LongStatusCountRow;
 import com.devluis.dto.OperatorDTO;
 import com.devluis.dto.PatientDTO;
 import com.devluis.dto.ScheduleDTO;
@@ -22,6 +26,7 @@ import com.devluis.dto.ServicioDTO;
 import com.devluis.dto.StablishmentDTO;
 import com.devluis.dto.TurnBoardDTO;
 import com.devluis.dto.TurnDTO;
+import com.devluis.dto.TurnDailyCountsDTO;
 import com.devluis.entity.Patient;
 import com.devluis.entity.Schedule;
 import com.devluis.entity.Turn;
@@ -49,6 +54,16 @@ public class TurnService {
   private final org.springframework.messaging.simp.SimpMessagingTemplate messagingTemplate;
   private final MailService mailService;
   private final com.devluis.repository.ConsultorioRepository consultorioRepository;
+
+  /**
+   * Solo para saber SI quien llama es un medico.
+   *
+   * `/waiting` e `/in-treatment` los usan recepcion y el medico desde pantallas
+   * distintas. La capa de seguridad ya decide quien puede tocar el endpoint;
+   * lo que no puede decidir es de QUIEN es el turno, y esa diferencia importa:
+   * un operador atiende la cola entera de su sede, un medico solo la suya.
+   */
+  private final com.devluis.repository.DoctorRepository doctorRepository;
 
   @Transactional
   public TurnDTO create(TurnDTO dto, String authName) {
@@ -293,10 +308,49 @@ public class TurnService {
     return updatedDTO;
   }
 
+  /**
+   * Si quien llama es un MEDICO, el turno tiene que ser suyo.
+   *
+   * Un operador o un admin pasan de largo: es su trabajo mover la cola entera
+   * de la sede, y la regla de seguridad ya los autorizo. Un medico, en cambio,
+   * llega hasta aca porque su propio panel necesita estos endpoints — y sin
+   * esta comprobacion podria hacer ingreso y llamar a los pacientes de
+   * cualquier otro medico de la clinica.
+   *
+   * Es exactamente la regla que markAsTreated ya aplicaba; lo unico nuevo es
+   * que ahora tambien cubre el ingreso y el llamado.
+   *
+   * El principal que NO parsea como UUID no se rechaza aca: eso ya lo resolvio
+   * la capa de seguridad, y convertirlo en un error de pertenencia diria algo
+   * falso sobre lo que paso.
+   */
+  private void requireOwnershipWhenDoctor(Turn turn, String authName) {
+    UUID callerUuid;
+    try {
+      callerUuid = UUID.fromString(authName);
+    } catch (Exception e) {
+      return;
+    }
+
+    if (doctorRepository.findById(callerUuid).isEmpty()) {
+      return;
+    }
+
+    String assignedDoctorUuid = turn.getSchedule() != null && turn.getSchedule().getDoctor() != null
+        ? turn.getSchedule().getDoctor().getUuid().toString()
+        : null;
+
+    if (!callerUuid.toString().equals(assignedDoctorUuid)) {
+      throw new RuntimeException("Error de permisos: Este turno no te pertenece");
+    }
+  }
+
   // Check-in: the patient arrived and registered at the counter.
   public TurnDTO markAsWaiting(Long turnId, String staffAuthName) {
     Turn turn = turnRepository.findById(turnId)
         .orElseThrow(() -> new RuntimeException("Turno no encontrado"));
+
+    requireOwnershipWhenDoctor(turn, staffAuthName);
 
     if (turn.getStatus() != TurnStatus.TURN_PENDING) {
       throw new RuntimeException("Solo se puede registrar el ingreso de un turno que está pendiente");
@@ -335,6 +389,8 @@ public class TurnService {
   public TurnDTO markAsInTreatment(Long turnId, Long consultorioId, String staffAuthName) {
     Turn turn = turnRepository.findById(turnId)
         .orElseThrow(() -> new RuntimeException("Turno no encontrado"));
+
+    requireOwnershipWhenDoctor(turn, staffAuthName);
 
     if (turn.getStatus() != TurnStatus.TURN_WAITNG) {
       throw new RuntimeException("Solo se puede iniciar la atención de un turno que está en sala de espera");
@@ -546,6 +602,58 @@ public class TurnService {
   }
 
   // Método auxiliar para mapear de Entidad a DTO
+  /**
+   * Conteos del dia para las tarjetas del panel de turnos: por sede y por
+   * servicio, con el total y cuantos siguen en TURN_PENDING.
+   *
+   * El agrupado lo hace la base (GROUP BY + COUNT). Traerse los turnos del dia
+   * para contarlos en memoria seria pedir ~200 filas completas, con paciente y
+   * cupo, para pintar dos numeros en una tarjeta.
+   *
+   * La reduccion a (total, pending) si es en memoria, y esta bien: son a lo
+   * sumo cinco filas por sede — una por estado — y hacerlo en JPQL exigiria una
+   * segunda consulta o un CASE que no aporta nada.
+   */
+  public TurnDailyCountsDTO getDailyCounts(LocalDate date) {
+    return TurnDailyCountsDTO.builder()
+        .date(date)
+        .byStablishment(reduceStatusRows(turnRepository.countByStablishmentAndStatusInRange(date, date)))
+        .byService(reduceStatusRows(turnRepository.countByServiceAndStatusForDate(date)))
+        .build();
+  }
+
+  /**
+   * Colapsa las filas (id, estado, cantidad) en una por id con total y
+   * pendientes.
+   *
+   * `pending` arranca en 0 y no en null: un id que no tiene ninguna fila
+   * TURN_PENDING igual informa 0, para que la tarjeta pinte el numero sin
+   * tener que distinguir "cero" de "no hay dato".
+   */
+  private List<TurnDailyCountsDTO.ScopeCount> reduceStatusRows(List<LongStatusCountRow> rows) {
+    Map<Long, long[]> acumulado = new LinkedHashMap<>();
+
+    for (LongStatusCountRow row : rows) {
+      if (row.getId() == null) {
+        continue;
+      }
+      long cantidad = row.getTotal() == null ? 0L : row.getTotal();
+      long[] par = acumulado.computeIfAbsent(row.getId(), key -> new long[] { 0L, 0L });
+      par[0] += cantidad;
+      if (row.getStatus() == TurnStatus.TURN_PENDING) {
+        par[1] += cantidad;
+      }
+    }
+
+    return acumulado.entrySet().stream()
+        .map(entry -> TurnDailyCountsDTO.ScopeCount.builder()
+            .id(entry.getKey())
+            .total(entry.getValue()[0])
+            .pending(entry.getValue()[1])
+            .build())
+        .toList();
+  }
+
   private TurnDTO mapToDTO(Turn entity) {
     PatientDTO patientDTO = null;
     if (entity.getPatient() != null) {
@@ -618,9 +726,28 @@ public class TurnService {
           .build();
     }
 
+    // El prefijo sale del servicio del cupo. Un turno sin cupo o sin servicio
+    // (no deberia pasar, pero el esquema lo permite) cae al numero pelado en
+    // vez de romper el mapeo entero.
+    String prefijoServicio = entity.getSchedule() != null && entity.getSchedule().getService() != null
+        ? entity.getSchedule().getService().getPrefix()
+        : null;
+
+    // Solo id, código y etiqueta: el ConsultorioDTO completo arrastra su
+    // StablishmentDTO, y la sede ya viaja en `schedule`. Repetirla haría que
+    // dos ramas del mismo JSON pudieran contradecirse.
+    ConsultorioDTO consultorioDTO = entity.getConsultorio() == null ? null
+        : ConsultorioDTO.builder()
+            .id(entity.getConsultorio().getId())
+            .code(entity.getConsultorio().getCode())
+            .label(entity.getConsultorio().getLabel())
+            .build();
+
     return TurnDTO.builder()
         .id(entity.getId())
         .order(entity.getOrder())
+        .ticket(com.devluis.utils.Ticket.format(prefijoServicio, entity.getOrder()))
+        .consultorio(consultorioDTO)
         .status(entity.getStatus())
         .createdAt(entity.getCreatedAt())
         .finishedAt(entity.getFinishedAt())

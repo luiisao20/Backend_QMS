@@ -28,7 +28,12 @@ import org.springframework.orm.ObjectOptimisticLockingFailureException;
 
 import com.devluis.dto.PatientDTO;
 import com.devluis.dto.ScheduleDTO;
+import java.util.List;
+
+import com.devluis.dto.LongStatusCountRow;
 import com.devluis.dto.TurnBoardDTO;
+import com.devluis.dto.TurnDTO;
+import com.devluis.dto.TurnDailyCountsDTO;
 import com.devluis.dto.TurnDTO;
 import com.devluis.entity.Doctor;
 import com.devluis.entity.Patient;
@@ -62,13 +67,23 @@ class TurnServiceTest {
   @Mock
   private com.devluis.repository.ConsultorioRepository consultorioRepository;
 
+  /**
+   * Solo se usa para responder "¿quien llama es un medico?".
+   *
+   * Sin estimular, Mockito devuelve Optional.empty(), o sea "no es medico" —
+   * que es justo el caso de los tests que pasan un UUID cualquiera como
+   * principal y esperan comportamiento de operador.
+   */
+  @Mock
+  private com.devluis.repository.DoctorRepository doctorRepository;
+
   private TurnService turnService;
 
   @BeforeEach
   void setUp() {
     turnService = new TurnService(
         turnRepository, patientRepository, scheduleRepository, operatorRepository, messagingTemplate, mailService,
-        consultorioRepository);
+        consultorioRepository, doctorRepository);
   }
 
   // -- fixtures --------------------------------------------------------------
@@ -86,6 +101,7 @@ class TurnServiceTest {
     return Servicio.builder()
         .id(id)
         .name("Cardiologia")
+        .prefix("C")
         .price(10f)
         .build();
   }
@@ -350,6 +366,152 @@ class TurnServiceTest {
     // client subscribes to /user/topic/turns.
     verify(messagingTemplate).convertAndSendToUser(eq(patientUuid.toString()), eq("/topic/turns"), dtoCaptor.capture());
     assertThat(dtoCaptor.getValue().getPatient().getUuid()).isEqualTo(patientUuid);
+  }
+
+  // -- el medico opera SUS turnos, el operador opera todos --------------------
+  //
+  // `/api/turns/*/waiting` e `/in-treatment` eran de ROLE_EMPLOYEE y ROLE_ADMIN,
+  // asi que el panel del medico recibia 401 en cada boton. Abrirlos a
+  // ROLE_DOCTOR sin mas dejaria a cualquier medico haciendo ingreso y llamando
+  // a los pacientes de cualquier otro.
+  //
+  // La regla que ya existia para markAsTreated ("Este turno no te pertenece")
+  // se aplica ahora tambien aca: si quien llama es un MEDICO, el turno tiene
+  // que ser suyo. Un operador no pasa por esa comprobacion — es su trabajo
+  // atender la cola entera de la sede.
+
+  @Test
+  void markAsWaiting_rejectsADoctorActingOnAnotherDoctorsTurn() {
+    UUID doctorDelTurno = UUID.randomUUID();
+    UUID otroDoctor = UUID.randomUUID();
+    Schedule schedule = buildSchedule(1L, buildDoctor(doctorDelTurno), buildService(1L), buildStablishment(1L),
+        ScheduleStatus.STATUS_OCCUPIED);
+    Turn turn = buildTurn(5L, TurnStatus.TURN_PENDING, buildPatient(UUID.randomUUID()), schedule);
+
+    when(turnRepository.findById(5L)).thenReturn(Optional.of(turn));
+    when(doctorRepository.findById(otroDoctor)).thenReturn(Optional.of(buildDoctor(otroDoctor)));
+
+    assertThatThrownBy(() -> turnService.markAsWaiting(5L, otroDoctor.toString()))
+        .isInstanceOf(RuntimeException.class)
+        .hasMessageContaining("no te pertenece");
+
+    verify(turnRepository, never()).save(any(Turn.class));
+  }
+
+  @Test
+  void markAsWaiting_allowsTheDoctorTheTurnBelongsTo() {
+    UUID doctorDelTurno = UUID.randomUUID();
+    Schedule schedule = buildSchedule(1L, buildDoctor(doctorDelTurno), buildService(1L), buildStablishment(1L),
+        ScheduleStatus.STATUS_OCCUPIED);
+    Turn turn = buildTurn(5L, TurnStatus.TURN_PENDING, buildPatient(UUID.randomUUID()), schedule);
+
+    when(turnRepository.findById(5L)).thenReturn(Optional.of(turn));
+    when(doctorRepository.findById(doctorDelTurno)).thenReturn(Optional.of(buildDoctor(doctorDelTurno)));
+    when(turnRepository.save(any(Turn.class))).thenAnswer(inv -> inv.getArgument(0));
+
+    TurnDTO dto = turnService.markAsWaiting(5L, doctorDelTurno.toString());
+
+    assertThat(dto.getStatus()).isEqualTo(TurnStatus.TURN_WAITNG);
+  }
+
+  @Test
+  void markAsInTreatment_rejectsADoctorActingOnAnotherDoctorsTurn() {
+    UUID otroDoctor = UUID.randomUUID();
+    Schedule schedule = buildSchedule(1L, buildDoctor(UUID.randomUUID()), buildService(1L), buildStablishment(1L),
+        ScheduleStatus.STATUS_OCCUPIED);
+    Turn turn = buildTurn(5L, TurnStatus.TURN_WAITNG, buildPatient(UUID.randomUUID()), schedule);
+
+    when(turnRepository.findById(5L)).thenReturn(Optional.of(turn));
+    when(doctorRepository.findById(otroDoctor)).thenReturn(Optional.of(buildDoctor(otroDoctor)));
+
+    assertThatThrownBy(() -> turnService.markAsInTreatment(5L, null, otroDoctor.toString()))
+        .isInstanceOf(RuntimeException.class)
+        .hasMessageContaining("no te pertenece");
+  }
+
+  // -- el ticket viaja en TurnDTO ---------------------------------------------
+  //
+  // Hasta ahora el numero que el paciente escucha ("C-001") existia SOLO en
+  // TurnBoardDTO, o sea unicamente en la pantalla de sala. TurnDTO llevaba
+  // `order` pelado, asi que el panel del operador mostraba "#1", la app del
+  // paciente no mostraba nada, y nadie fuera del televisor podia decir que
+  // numero le toca a quien. Un operador que llama a alguien tiene que poder
+  // decir el numero en voz alta y verificarlo contra la pantalla.
+  //
+  // Se formatea con utils/Ticket, no a mano: su docblock dice explicitamente
+  // que vive ahi para que ningun cliente derive su propio formato y el mismo
+  // turno se vea distinto en dos lugares.
+
+  @Test
+  void markAsWaiting_returnsTheTicketThePatientWillHear_notJustTheOrder() {
+    Schedule schedule = buildSchedule(1L, buildDoctor(UUID.randomUUID()), buildService(1L), buildStablishment(1L),
+        ScheduleStatus.STATUS_OCCUPIED);
+    Turn turn = buildTurn(5L, TurnStatus.TURN_PENDING, buildPatient(UUID.randomUUID()), schedule);
+
+    when(turnRepository.findById(5L)).thenReturn(Optional.of(turn));
+    when(turnRepository.save(any(Turn.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+    TurnDTO dto = turnService.markAsWaiting(5L, UUID.randomUUID().toString());
+
+    // buildService le pone prefijo "C" y buildTurn order 1.
+    assertThat(dto.getTicket()).isEqualTo("C-001");
+    assertThat(dto.getOrder()).isEqualTo(1);
+  }
+
+  @Test
+  void markAsWaiting_fallsBackToTheBareNumber_whenTheServiceHasNoPrefix() {
+    // Los servicios creados antes de la migracion de consultorios tienen
+    // prefix NULL. Esos tienen que caer al numero pelado, no a "null-001".
+    Servicio sinPrefijo = buildService(1L);
+    sinPrefijo.setPrefix(null);
+    Schedule schedule = buildSchedule(1L, buildDoctor(UUID.randomUUID()), sinPrefijo, buildStablishment(1L),
+        ScheduleStatus.STATUS_OCCUPIED);
+    Turn turn = buildTurn(5L, TurnStatus.TURN_PENDING, buildPatient(UUID.randomUUID()), schedule);
+
+    when(turnRepository.findById(5L)).thenReturn(Optional.of(turn));
+    when(turnRepository.save(any(Turn.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+    TurnDTO dto = turnService.markAsWaiting(5L, UUID.randomUUID().toString());
+
+    assertThat(dto.getTicket()).isEqualTo("001");
+  }
+
+  // -- conteos del dia para las tarjetas del panel ----------------------------
+
+  @Test
+  void getDailyCounts_sumsEveryStatusIntoTotal_butOnlyPendingIntoPending() {
+    LocalDate hoy = LocalDate.now();
+
+    when(turnRepository.countByStablishmentAndStatusInRange(hoy, hoy)).thenReturn(List.of(
+        new LongStatusCountRow(10L, TurnStatus.TURN_PENDING, 4L),
+        new LongStatusCountRow(10L, TurnStatus.TURN_WAITNG, 2L),
+        new LongStatusCountRow(10L, TurnStatus.TURN_CANCELLED, 1L),
+        new LongStatusCountRow(11L, TurnStatus.TURN_TREATED, 3L)));
+    when(turnRepository.countByServiceAndStatusForDate(hoy)).thenReturn(List.of(
+        new LongStatusCountRow(7L, TurnStatus.TURN_PENDING, 5L),
+        new LongStatusCountRow(7L, TurnStatus.TURN_IN_TREATMENT, 1L)));
+
+    TurnDailyCountsDTO counts = turnService.getDailyCounts(hoy);
+
+    TurnDailyCountsDTO.ScopeCount sede10 = counts.getByStablishment().stream()
+        .filter(row -> row.getId().equals(10L)).findFirst().orElseThrow();
+    // 4 + 2 + 1: el total incluye los cancelados, porque la tarjeta dice
+    // "turnos del dia", no "turnos vivos".
+    assertThat(sede10.getTotal()).isEqualTo(7L);
+    assertThat(sede10.getPending()).isEqualTo(4L);
+
+    // Una sede sin ningun TURN_PENDING informa 0, no null: la tarjeta tiene que
+    // poder pintar el numero sin preguntarse si falta el dato.
+    TurnDailyCountsDTO.ScopeCount sede11 = counts.getByStablishment().stream()
+        .filter(row -> row.getId().equals(11L)).findFirst().orElseThrow();
+    assertThat(sede11.getTotal()).isEqualTo(3L);
+    assertThat(sede11.getPending()).isEqualTo(0L);
+
+    TurnDailyCountsDTO.ScopeCount servicio7 = counts.getByService().get(0);
+    assertThat(servicio7.getId()).isEqualTo(7L);
+    assertThat(servicio7.getTotal()).isEqualTo(6L);
+    // TURN_IN_TREATMENT NO es pendiente: ya lo llamaron.
+    assertThat(servicio7.getPending()).isEqualTo(5L);
   }
 
   // -- cancelTurn: schedule release, guarded by other active turns / STATUS_UNAVAILABLE --

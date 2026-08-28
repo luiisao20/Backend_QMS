@@ -1,8 +1,13 @@
 package com.devluis.services;
 
 import java.time.LocalDate;
+import java.time.LocalTime;
+import java.time.OffsetDateTime;
 import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.EnumSet;
 import java.util.List;
+import java.util.Set;
 
 import org.springframework.stereotype.Service;
 
@@ -36,8 +41,28 @@ import lombok.Data;
 @Data
 public class SalaService {
 
-  /** Filas que entran en la columna de llamados sin recortarse. */
+  /** Filas que entran en la columna sin recortarse. */
   private static final int HISTORY_SIZE = 13;
+
+  /**
+   * Los unicos dos estados que ponen a alguien DENTRO de la sala.
+   *
+   * Un turno atendido ya se fue del edificio y uno cancelado no tiene nada que
+   * esperar: ninguno de los dos le dice nada a la persona sentada mirando la
+   * pantalla. TURN_PENDING queda afuera por lo contrario -- todavia no paso
+   * por recepcion, asi que tampoco esta en la sala.
+   *
+   * TURN_IN_TREATMENT es ademas lo que necesita el que llega tarde: un llamado
+   * que nadie finalizo se queda en ese estado, asi que puede leer la columna y
+   * enterarse de que ya lo llamaron aunque su numero ya no este en el panel
+   * grande.
+   *
+   * La regla vive aca y no dentro de la JPQL porque aca tiene test: el
+   * proyecto no tiene base de datos en el entorno de pruebas. Ver
+   * SalaServiceTest.
+   */
+  private static final Set<TurnStatus> BOARD_STATUSES =
+      EnumSet.of(TurnStatus.TURN_IN_TREATMENT, TurnStatus.TURN_WAITNG);
 
   private final TurnRepository turnRepository;
   private final StablishmentRepository stablishmentRepository;
@@ -57,19 +82,43 @@ public class SalaService {
 
     Branding branding = brandingRepository.findAll().stream().findFirst().orElse(null);
 
-    // Ya vienen del mas reciente al mas viejo por calledAt.
-    List<Turn> called = turnRepository.findCalledForBoard(stablishmentId, LocalDate.now());
+    List<Turn> onSite = turnRepository.findBoardTurns(
+        stablishmentId, LocalDate.now(), BOARD_STATUSES);
 
-    Turn current = called.stream()
+    // Llamados: del llamado mas reciente al mas viejo. Por calledAt y NO por
+    // createdAt -- createdAt es cuando se reservo el turno, que puede ser de
+    // hace una semana y no dice nada del orden en que se llamo a la gente hoy.
+    List<Turn> called = onSite.stream()
         .filter(t -> t.getStatus() == TurnStatus.TURN_IN_TREATMENT)
-        .findFirst()
-        .orElse(null);
+        .sorted(Comparator.comparing(Turn::getCalledAt,
+            Comparator.nullsLast(Comparator.<OffsetDateTime>reverseOrder())))
+        .toList();
 
-    // history son los llamados ANTERIORES al actual. Excluir el actual por id y
-    // no por posicion: si nadie esta en atencion, current es null y la lista
-    // entera es historial.
+    // En espera: por la hora de su cita, que es el orden en que los van a
+    // llamar. El que espera busca SU numero y cuenta cuantos tiene encima; con
+    // cualquier otro orden esa cuenta no significa nada.
+    List<Turn> waiting = onSite.stream()
+        .filter(t -> t.getStatus() == TurnStatus.TURN_WAITNG)
+        .sorted(Comparator.<Turn, LocalTime>comparing(SalaService::hourOf,
+                Comparator.nullsLast(Comparator.<LocalTime>naturalOrder()))
+            .thenComparing(Turn::getOrder,
+                Comparator.nullsLast(Comparator.<Integer>naturalOrder())))
+        .toList();
+
+    Turn current = called.stream().findFirst().orElse(null);
+
+    // La columna: primero el resto de los llamados, despues la cola. Excluir el
+    // actual por id y no por posicion: si nadie esta en atencion, current es
+    // null y no hay nada que saltear.
+    //
+    // El recorte de HISTORY_SIZE cae sobre la cola, no sobre los llamados, y
+    // asi tiene que ser: perder un llamado es perder justo el dato por el que
+    // el que llego tarde mira la pantalla.
+    List<Turn> column = new ArrayList<>(called);
+    column.addAll(waiting);
+
     List<WaitingRoomScreenDTO.Call> history = new ArrayList<>();
-    for (Turn turn : called) {
+    for (Turn turn : column) {
       if (current != null && turn.getId().equals(current.getId())) {
         continue;
       }
@@ -136,6 +185,17 @@ public class SalaService {
 
   private String roomCodeOf(Turn turn) {
     return turn.getConsultorio() != null ? turn.getConsultorio().getCode() : null;
+  }
+
+  /**
+   * La hora de la cita, o null si el turno no tiene cupo cargado.
+   *
+   * Statica porque se usa como clave de orden y un Comparator no deberia
+   * depender de la instancia del servicio.
+   */
+  private static LocalTime hourOf(Turn turn) {
+    Schedule schedule = turn.getSchedule();
+    return schedule == null ? null : schedule.getHour();
   }
 
   /** Stablishment no modela ciudad aparte; lo mas cercano es la direccion. */
