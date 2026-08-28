@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Código de Verificación OTP</title>
+    <style>
+        body { font-family: Arial, sans-serif; background-color: #f9f9f9; margin: 0; padding: 0; color: #333333; }
+        .container { width: 100%; max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 10px; overflow: hidden; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); margin-top: 20px; margin-bottom: 20px; }
+        .header { background-color: #0b2e59; color: #ffffff; padding: 20px; text-align: center; }
+        .header h1 { margin: 0; font-size: 24px; }
+        .content { padding: 30px; line-height: 1.6; text-align: center; }
+        .content h2 { color: #0076c0; margin-top: 0; font-size: 18px; }
+        .otp-box { background-color: #f0f7fb; border: 2px dashed #0076c0; padding: 20px; margin: 20px auto; max-width: 300px; font-size: 32px; font-weight: bold; letter-spacing: 5px; color: #0b2e59; border-radius: 8px; }
+        .footer { background-color: #f1f1f1; padding: 20px; text-align: center; font-size: 12px; color: #777777; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Código de Verificación</h1>
+        </div>
+        <div class="content">
+            <h2>Su código OTP</h2>
+            <p th:text="'Se ha generado un código de verificación para su ' + ${action} + '.'">Se ha generado un código de verificación.</p>
+            
+            <div class="otp-box" th:text="${otp}">123456</div>
+            
+            <p>Por favor ingréselo en la plataforma para continuar. Este código expirará pronto.</p>
+            <p>Si usted no solicitó este código, ignore este correo.</p>
+            <p>Saludos cordiales,<br>Sistema de Gestión de Turnos (QMS)</p>
+        </div>
+        <div class="footer">
+            <p>Este es un correo informativo, por favor no responda a esta dirección.</p>
+        </div>
+    </div>
+</body>
+</html>

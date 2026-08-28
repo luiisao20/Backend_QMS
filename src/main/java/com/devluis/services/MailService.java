@@ -29,6 +29,50 @@ public class MailService {
     javaMailSender.send(message);
   }
 
+  public void sendOtpEmail(String to, String subject, String otp, String action) {
+    try {
+      MimeMessage message = javaMailSender.createMimeMessage();
+      MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
+
+      helper.setFrom("bravo.luis.1995@gmail.com");
+      helper.setTo(to);
+      helper.setSubject(subject);
+
+      Context context = new Context();
+      context.setVariable("otp", otp);
+      context.setVariable("action", action);
+
+      String htmlBody = templateEngine.process("codigo_otp", context);
+      helper.setText(htmlBody, true);
+
+      javaMailSender.send(message);
+    } catch (Exception e) {
+      log.error("Error enviando email de OTP: ", e);
+    }
+  }
+
+  public void sendRegistrationSuccessEmail(String to, String firstName, String lastName) {
+    try {
+      MimeMessage message = javaMailSender.createMimeMessage();
+      MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
+
+      helper.setFrom("bravo.luis.1995@gmail.com");
+      helper.setTo(to);
+      helper.setSubject("Registro exitoso - QMS");
+
+      Context context = new Context();
+      context.setVariable("firstName", firstName);
+      context.setVariable("lastName", lastName);
+
+      String htmlBody = templateEngine.process("registro_exitoso", context);
+      helper.setText(htmlBody, true);
+
+      javaMailSender.send(message);
+    } catch (Exception e) {
+      log.error("Error enviando email de registro exitoso: ", e);
+    }
+  }
+
   public void sendTurnCreatedEmail(
       String patientEmail,
       String patientFirstName,

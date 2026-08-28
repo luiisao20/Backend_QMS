@@ -153,9 +153,7 @@ public class AuthService {
     // registration flow must not blow up on an already-stored OTP — log and
     // continue, same pattern as TurnService.sendTurnEmail.
     try {
-      mailService.sendTestEmail(email, "Completa tu registro - Código OTP",
-          "Se ha generado tu código de verificación OTP: " + otp
-              + ".\nPor favor ingrésalo en la plataforma para continuar con tu registro.");
+      mailService.sendOtpEmail(email, "Completa tu registro - Código OTP", otp, "registro en la plataforma");
     } catch (Exception e) {
       System.err.println("Error al enviar correo de OTP de registro: " + e.getMessage());
     }
@@ -207,9 +205,7 @@ public class AuthService {
     String jwt = JwtProvider.generateToken(auth);
     SecurityContextHolder.getContext().setAuthentication(auth);
 
-    mailService.sendTestEmail(emailAuth, "Registro exitoso - QMS",
-        "Hola " + patientRegistered.getFirstName() + " " + patientRegistered.getLastName()
-            + ",\n\nTu registro en la plataforma QMS ha culminado con éxito.");
+    mailService.sendRegistrationSuccessEmail(emailAuth, patientRegistered.getFirstName(), patientRegistered.getLastName());
 
     return AuthResult.ok(RegistrationResult.builder()
         .authResponse(buildAuthResponse(patientRegistered, "Registro culminado con éxito"))
@@ -288,8 +284,7 @@ public class AuthService {
         List.of(new SimpleGrantedAuthority("ROLE_OTP_PENDING")));
     String jwt = JwtProvider.generateFlashToken(auth);
 
-    mailService.sendTestEmail(email, "Recuperación de contraseña",
-        "Tu código OTP para recuperar la contraseña es: " + otp);
+    mailService.sendOtpEmail(email, "Recuperación de contraseña", otp, "recuperación de contraseña");
 
     return AuthResult.ok(jwt);
   }
