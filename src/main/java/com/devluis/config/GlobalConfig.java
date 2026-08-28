@@ -98,11 +98,26 @@ public class GlobalConfig {
             ).hasAnyAuthority("ROLE_DOCTOR", "ROLE_EMPLOYEE", "ROLE_ADMIN")
 
             // -------------------------------------------------------------
+            // 3b. INGRESO Y LLAMADO: recepcion, administracion Y EL MEDICO
+            //
+            // El medico entro a esta lista porque su propio panel
+            // (/admin/mis-asignaciones/turnos) necesita registrar el ingreso y
+            // llamar a sus pacientes, y sin esto cada boton devolvia 401.
+            //
+            // Que el medico pueda TOCAR el endpoint no significa que pueda
+            // tocar CUALQUIER turno: TurnService#requireOwnershipWhenDoctor
+            // exige que el turno sea suyo. Esa comprobacion no puede vivir aca
+            // — un matcher de URL no sabe de quien es el turno — asi que la
+            // autorizacion queda repartida a proposito entre las dos capas.
+            // -------------------------------------------------------------
+            .requestMatchers("/api/turns/*/waiting", "/api/turns/*/in-treatment")
+            .hasAnyAuthority("ROLE_EMPLOYEE", "ROLE_ADMIN", "ROLE_DOCTOR")
+
+            // -------------------------------------------------------------
             // 4. GRUPO 2: ROLE_EMPLOYEE, ROLE_ADMIN
             // -------------------------------------------------------------
             .requestMatchers(
                 "/api/turns/*/reassign", "/api/turns/*/staff-cancel", "/api/turns/*/treated/admin",
-                "/api/turns/*/waiting", "/api/turns/*/in-treatment",
                 "/api/patients/*/coverages", "/api/patient-coverages", "/api/patient-coverages/*",
                 "/api/patients/*/invoices",
                 "/api/invoices/*/payments",
